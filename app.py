@@ -182,6 +182,129 @@ if "messages" not in st.session_state:
     st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
 # -----------------
+# Chat Loop (Pure Streamlit Sync)
+# -----------------
+def _chat_with_agent(user_input):
+    client = OpenAI(api_key=api_key, base_url=base_url)
+    # Ensure current output goes to tab_chat context
+    # (Streamlit handles this as long as the chat loop is triggered)
+    full_prompt = user_input
+    if user_context:
+        full_prompt += f"\n\n[USER CONTEXT DATA]:\n{user_context}"
+        
+    st.session_state.messages.append({"role": "user", "content": full_prompt})
+    
+    # We switch back to tab_chat context conceptually
+    # (Standard Streamlit chat interaction)
+    with tab_chat:
+        with st.chat_message("user"):
+            st.markdown(full_prompt)
+
+        with st.chat_message("assistant"):
+            message_placeholder = st.empty()
+            message_placeholder.markdown("🧠 Thinking...")
+            
+            # Format messages for OpenAI
+            messages_for_api = []
+            for m in st.session_state.messages:
+                api_msg = {"role": m["role"]}
+                if "content" in m: api_msg["content"] = m["content"]
+                if "tool_calls" in m: api_msg["tool_calls"] = m["tool_calls"]
+                if "tool_call_id" in m: api_msg["tool_call_id"] = m["tool_call_id"]
+                if "name" in m: api_msg["name"] = m["name"]
+                messages_for_api.append(api_msg)
+
+            try:
+                response = client.chat.completions.create(
+                    model=model_name,
+                    messages=messages_for_api,
+                    tools=openai_tools,
+                    tool_choice="auto"
+                )
+                response_message = response.choices[0].message
+                msg_dict = {"role": response_message.role, "content": response_message.content}
+                if response_message.tool_calls:
+                    msg_dict["tool_calls"] = []
+                    for tc in response_message.tool_calls:
+                        msg_dict["tool_calls"].append({
+                            "id": tc.id,
+                            "type": "function",
+                            "function": {"name": tc.function.name, "arguments": tc.function.arguments}
+                        })
+                st.session_state.messages.append(msg_dict)
+                
+                # Handle recursive tool calls until model stops
+                while response_message.tool_calls:
+                    for tool_call in response_message.tool_calls:
+                        func_name = tool_call.function.name
+                        func_args = json.loads(tool_call.function.arguments)
+                        message_placeholder.markdown(f"⚙️ Executing pyResToolbox tool: `{func_name}`")
+                        
+                        try:
+                            # RUN MCP TOOL SYNC VIA ISOLATED THREAD
+                            tool_result = run_sync(call_mcp_tool, func_name, func_args)
+                            res_text = "\n".join([c.text for c in tool_result.content if getattr(c, 'type', '') == 'text'])
+                            if not res_text:
+                                res_text = str([c.model_dump() for c in tool_result.content])
+                        except Exception as e:
+                            res_text = f"Error executing tool {func_name}: {e}"
+                            
+                        st.session_state.messages.append({
+                            "role": "tool", "tool_call_id": tool_call.id, "name": func_name, "content": res_text
+                        })
+                        
+                    messages_for_api = []
+                    for m in st.session_state.messages:
+                        api_msg = {"role": m["role"]}
+                        if "content" in m: api_msg["content"] = m["content"]
+                        if "tool_calls" in m: api_msg["tool_calls"] = m["tool_calls"]
+                        if "tool_call_id" in m: api_msg["tool_call_id"] = m["tool_call_id"]
+                        if "name" in m: api_msg["name"] = m["name"]
+                        messages_for_api.append(api_msg)
+
+                    message_placeholder.markdown("🧠 Analyzing results...")
+                    response = client.chat.completions.create(
+                        model=model_name, messages=messages_for_api, tools=openai_tools, tool_choice="auto"
+                    )
+                    response_message = response.choices[0].message
+                    msg_dict = {"role": response_message.role, "content": response_message.content}
+                    if response_message.tool_calls:
+                        msg_dict["tool_calls"] = []
+                        for tc in response_message.tool_calls:
+                            msg_dict["tool_calls"].append({
+                                "id": tc.id, "type": "function", "function": {"name": tc.function.name, "arguments": tc.function.arguments}
+                            })
+                    st.session_state.messages.append(msg_dict)
+                
+                # Final rendering logic
+                final_text = response_message.content or ""
+                json_start = final_text.rfind("```json")
+                json_end = final_text.rfind("```", json_start + 7)
+                
+                if json_start != -1 and json_end != -1:
+                    json_str = final_text[json_start+7 : json_end].strip()
+                    display_text = final_text[:json_start].strip()
+                    message_placeholder.markdown(display_text)
+                    
+                    try:
+                        plot_data = json.loads(json_str)
+                        if plot_data.get("plot_type") == "table":
+                            st.dataframe(pd.DataFrame(plot_data.get("data", {})))
+                        elif plot_type := plot_data.get("plot_type") == "line":
+                            fig = go.Figure()
+                            for s_name, s_data in plot_data.get("series", {}).items():
+                                fig.add_trace(go.Scatter(x=s_data["x"], y=s_data["y"], mode='lines+markers', name=s_name))
+                            fig.update_layout(xaxis_title=plot_data.get("x_label", "X"), yaxis_title=plot_data.get("y_label", "Y"), title=plot_data.get("title", "Simulation"))
+                            st.plotly_chart(fig, use_container_width=True)
+                    except:
+                        st.code(json_str)
+                else:
+                    message_placeholder.markdown(final_text)
+
+            except Exception as e:
+                st.error(f"API Error: {e}")
+
+# -----------------
 # UI Tabs
 # -----------------
 tab_chat, tab_guide = st.tabs(["💬 AI Agent", "📖 User Guide"])
@@ -311,126 +434,4 @@ with tab_guide:
             - *Example*: "Run sensitivity of Pi on IPR from 3000 to 6000 psia."
             """)
 
-# -----------------
-# Chat Loop (Pure Streamlit Sync)
-# -----------------
-def _chat_with_agent(user_input):
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    # Ensure current output goes to tab_chat context
-    # (Streamlit handles this as long as the chat loop is triggered)
-    full_prompt = user_input
-    if user_context:
-        full_prompt += f"\n\n[USER CONTEXT DATA]:\n{user_context}"
-        
-    st.session_state.messages.append({"role": "user", "content": full_prompt})
-    
-    # We switch back to tab_chat context conceptually
-    # (Standard Streamlit chat interaction)
-    with tab_chat:
-        with st.chat_message("user"):
-            st.markdown(full_prompt)
 
-        with st.chat_message("assistant"):
-            message_placeholder = st.empty()
-            message_placeholder.markdown("🧠 Thinking...")
-            
-            # Format messages for OpenAI
-            messages_for_api = []
-            for m in st.session_state.messages:
-                api_msg = {"role": m["role"]}
-                if "content" in m: api_msg["content"] = m["content"]
-                if "tool_calls" in m: api_msg["tool_calls"] = m["tool_calls"]
-                if "tool_call_id" in m: api_msg["tool_call_id"] = m["tool_call_id"]
-                if "name" in m: api_msg["name"] = m["name"]
-                messages_for_api.append(api_msg)
-
-            try:
-                response = client.chat.completions.create(
-                    model=model_name,
-                    messages=messages_for_api,
-                    tools=openai_tools,
-                    tool_choice="auto"
-                )
-                response_message = response.choices[0].message
-                msg_dict = {"role": response_message.role, "content": response_message.content}
-                if response_message.tool_calls:
-                    msg_dict["tool_calls"] = []
-                    for tc in response_message.tool_calls:
-                        msg_dict["tool_calls"].append({
-                            "id": tc.id,
-                            "type": "function",
-                            "function": {"name": tc.function.name, "arguments": tc.function.arguments}
-                        })
-                st.session_state.messages.append(msg_dict)
-                
-                # Handle recursive tool calls until model stops
-                while response_message.tool_calls:
-                    for tool_call in response_message.tool_calls:
-                        func_name = tool_call.function.name
-                        func_args = json.loads(tool_call.function.arguments)
-                        message_placeholder.markdown(f"⚙️ Executing pyResToolbox tool: `{func_name}`")
-                        
-                        try:
-                            tool_result = run_sync(call_mcp_tool, func_name, func_args)
-                            res_text = "\n".join([c.text for c in tool_result.content if getattr(c, 'type', '') == 'text'])
-                            if not res_text:
-                                res_text = str([c.model_dump() for c in tool_result.content])
-                        except Exception as e:
-                            res_text = f"Error executing tool {func_name}: {e}"
-                            
-                        st.session_state.messages.append({
-                            "role": "tool", "tool_call_id": tool_call.id, "name": func_name, "content": res_text
-                        })
-                        
-                    messages_for_api = []
-                    for m in st.session_state.messages:
-                        api_msg = {"role": m["role"]}
-                        if "content" in m: api_msg["content"] = m["content"]
-                        if "tool_calls" in m: api_msg["tool_calls"] = m["tool_calls"]
-                        if "tool_call_id" in m: api_msg["tool_call_id"] = m["tool_call_id"]
-                        if "name" in m: api_msg["name"] = m["name"]
-                        messages_for_api.append(api_msg)
-
-                    message_placeholder.markdown("🧠 Analyzing results...")
-                    response = client.chat.completions.create(
-                        model=model_name, messages=messages_for_api, tools=openai_tools, tool_choice="auto"
-                    )
-                    response_message = response.choices[0].message
-                    msg_dict = {"role": response_message.role, "content": response_message.content}
-                    if response_message.tool_calls:
-                        msg_dict["tool_calls"] = []
-                        for tc in response_message.tool_calls:
-                            msg_dict["tool_calls"].append({
-                                "id": tc.id, "type": "function", "function": {"name": tc.function.name, "arguments": tc.function.arguments}
-                            })
-                    st.session_state.messages.append(msg_dict)
-                
-                # Final rendering logic
-                final_text = response_message.content or ""
-                json_start = final_text.rfind("```json")
-                json_end = final_text.rfind("```", json_start + 7)
-                
-                if json_start != -1 and json_end != -1:
-                    json_str = final_text[json_start+7 : json_end].strip()
-                    display_text = final_text[:json_start].strip()
-                    message_placeholder.markdown(display_text)
-                    
-                    try:
-                        plot_data = json.loads(json_str)
-                        if plot_data.get("plot_type") == "table":
-                            st.dataframe(pd.DataFrame(plot_data.get("data", {})))
-                        elif plot_type := plot_data.get("plot_type") == "line":
-                            fig = go.Figure()
-                            for s_name, s_data in plot_data.get("series", {}).items():
-                                fig.add_trace(go.Scatter(x=s_data["x"], y=s_data["y"], mode='lines+markers', name=s_name))
-                            fig.update_layout(xaxis_title=plot_data.get("x_label", "X"), yaxis_title=plot_data.get("y_label", "Y"), title=plot_data.get("title", "Simulation"))
-                            st.plotly_chart(fig, use_container_width=True)
-                    except:
-                        st.code(json_str)
-                else:
-                    message_placeholder.markdown(final_text)
-
-            except Exception as e:
-                st.error(f"API Error: {e}")
-
-    ...
