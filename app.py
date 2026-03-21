@@ -33,7 +33,7 @@ Format for charts: {"plot_type": "line", "x_label": "X", "y_label": "Y", "series
 # Fixed Configuration (OpenRouter)
 # -----------------
 # Get API KEY from st.secrets (Streamlit Cloud) or fall back to user-provided key.
-API_KEY = st.secrets.get("OPENROUTER_API_KEY", "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")
+API_KEY = st.secrets.get("OPENROUTER_API_KEY", "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")
 BASE_URL = "https://openrouter.ai/api/v1"
 MODEL_NAME = "google/gemini-2.0-flash-001"
 
