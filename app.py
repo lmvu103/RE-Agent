@@ -32,8 +32,8 @@ Format for charts: {"plot_type": "line", "x_label": "X", "y_label": "Y", "series
 # -----------------
 # Fixed Configuration (OpenRouter)
 # -----------------
-# Default OpenRouter settings (Override via st.secrets on Cloud)
-API_KEY = st.secrets.get("OPENROUTER_API_KEY", "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")
+# Get API KEY from st.secrets (Streamlit Cloud) or fall back to an empty string.
+API_KEY = st.secrets.get("OPENROUTER_API_KEY", "")
 BASE_URL = "https://openrouter.ai/api/v1"
 MODEL_NAME = "google/gemini-2.0-flash-001"
 
@@ -44,7 +44,16 @@ model_name = MODEL_NAME
 
 with st.sidebar:
     st.header("⚙️ pyResToolbox AI")
-    st.success("App connected to OpenRouter ✅")
+    if API_KEY:
+        st.success("App connected to OpenRouter ✅")
+    else:
+        st.warning("⚠️ OpenRouter API Key missing!")
+        st.info("""
+        Please set your **OPENROUTER_API_KEY** in Streamlit Cloud Secrets:
+        1. Go to your App Dashboard
+        2. Click **Settings** -> **Secrets**
+        3. Add: `OPENROUTER_API_KEY = "your-key-here"`
+        """)
     
     st.divider()
     with st.expander("💡 Example Queries", expanded=True):
