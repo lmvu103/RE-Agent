@@ -65,17 +65,9 @@ with st.sidebar:
 # -----------------
 @st.cache_resource
 def get_mcp_server_params():
-    env = os.environ.copy()
-    # Ensure MCP can find its own packages in 'src' absolutely
-    server_src = os.path.join(MCP_DIR, "src")
-    # Join with existing PYTHONPATH if any
-    existing_pp = env.get('PYTHONPATH', '')
-    env["PYTHONPATH"] = f"{server_src}{os.pathsep}{existing_pp}" if existing_pp else server_src
-    
     return StdioServerParameters(
         command=PYTHON_UV,
         args=[os.path.join(MCP_DIR, "server.py")],
-        env=env
     )
 
 async def get_all_tools():
@@ -87,11 +79,20 @@ async def get_all_tools():
                 response = await session.list_tools()
                 return response.tools
     except Exception as e:
-        # Try to diagnose by running the command directly for a moment
+        import os
+        cwd = os.getcwd()
+        mcp_exists = os.path.exists(MCP_DIR)
+        server_path = os.path.join(MCP_DIR, "server.py")
+        server_exists = os.path.exists(server_path)
+        diag_msg = f"\nDiagnostic Info: CWD={cwd}, MCP_DIR={MCP_DIR} (exists={mcp_exists}), server.py={server_path} (exists={server_exists})"
+        
         import subprocess
-        env = params.env if hasattr(params, 'env') else None
-        diag = subprocess.run([params.command] + params.args, capture_output=True, text=True, timeout=5, env=env)
-        error_msg = f"Failed to list tools: {e}\n\nServer Stderr:\n{diag.stderr}\nServer Stdout:\n{diag.stdout}"
+        try:
+            # Longer timeout (15s) and explicit cwd for diagnostic command
+            diag = subprocess.run([params.command] + params.args, capture_output=True, text=True, timeout=15)
+            error_msg = f"Failed to list tools: {e}{diag_msg}\n\nServer Stderr:\n{diag.stderr}\nServer Stdout:\n{diag.stdout}"
+        except Exception as diag_e:
+            error_msg = f"Failed to list tools: {e}{diag_msg}\n\nSubprocess Diagnostic failed: {diag_e}"
         raise Exception(error_msg)
 
 async def call_mcp_tool(name: str, arguments: dict):
