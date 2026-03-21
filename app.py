@@ -78,12 +78,14 @@ def get_mcp_server_params():
 async def get_all_tools():
     params = get_mcp_server_params()
     try:
+        # Increase connection timeout or handle it gracefully
         async with stdio_client(params) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 response = await session.list_tools()
                 return response.tools
     except Exception as e:
+        # Better diagnostic info: reveal WHAT the server is actually complaining about
         import os
         cwd = os.getcwd()
         mcp_exists = os.path.exists(MCP_DIR)
@@ -91,13 +93,24 @@ async def get_all_tools():
         server_exists = os.path.exists(server_path)
         diag_msg = f"\nDiagnostic Info: CWD={cwd}, MCP_DIR={MCP_DIR} (exists={mcp_exists}), server.py={server_path} (exists={server_exists})"
         
+        # Try to run the server for just 2 seconds to capture its startup errors (like ImportErrors)
         import subprocess
         try:
-            # Longer timeout (15s) and explicit cwd for diagnostic command
-            diag = subprocess.run([params.command] + params.args, capture_output=True, text=True, timeout=15)
-            error_msg = f"Failed to list tools: {e}{diag_msg}\n\nServer Stderr:\n{diag.stderr}\nServer Stdout:\n{diag.stdout}"
+            # We use a short timeout (3s) and don't expect it to finish (it's a server)
+            # but we catch even the errors it prints before hanging
+            diag = subprocess.run([params.command] + params.args, capture_output=True, text=True, timeout=3)
+            # If it finished, something is definitely wrong (server should run forever)
+            error_msg = f"Server exited unexpectedly: {e}{diag_msg}\n\nStdout: {diag.stdout}\nStderr: {diag.stderr}"
+        except subprocess.TimeoutExpired as te:
+            # This is expected for a working server! So let's see what it printed in those 3 seconds
+            stderr = (te.stderr or "").strip()
+            stdout = (te.stdout or "").strip()
+            if stderr or stdout:
+                 error_msg = f"Failed to list tools (Server seems to start but failed to communicate): {e}{diag_msg}\n\nServer output in first 3s:\nSTDOUT: {stdout}\nSTDERR: {stderr}"
+            else:
+                 error_msg = f"Failed to list tools (Server started but NO output): {e}{diag_msg}"
         except Exception as diag_e:
-            error_msg = f"Failed to list tools: {e}{diag_msg}\n\nSubprocess Diagnostic failed: {diag_e}"
+            error_msg = f"Failed to list tools: {e}{diag_msg}\n\nDiagnostic failure: {diag_e}"
         raise Exception(error_msg)
 
 async def call_mcp_tool(name: str, arguments: dict):
