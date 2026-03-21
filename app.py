@@ -12,10 +12,8 @@ from mcp.client.session import ClientSession
 
 import os
 import sys
-import sniffio
-
-# Force AnyIO to recognize the loop
-sniffio.current_async_library_cvar.set("asyncio")
+import threading
+import concurrent.futures
 
 # Path configuration for the pyrestoolbox MCP Server
 PYTHON_UV = sys.executable 
@@ -109,21 +107,30 @@ async def call_mcp_tool(name: str, arguments: dict):
             result = await session.call_tool(name, arguments=arguments)
             return result
 
+# -----------------
+# Async Helper (Thread-safe)
+# -----------------
+class AsyncRunner:
+    def __init__(self):
+        self.loop = asyncio.new_event_loop()
+        self.thread = threading.Thread(target=self._run_loop, daemon=True)
+        self.thread.start()
+
+    def _run_loop(self):
+        import sniffio
+        sniffio.current_async_library_cvar.set("asyncio")
+        asyncio.set_event_loop(self.loop)
+        self.loop.run_forever()
+
+    def run(self, coro):
+        return asyncio.run_coroutine_threadsafe(coro, self.loop).result()
+
+@st.cache_resource
+def get_async_runner():
+    return AsyncRunner()
+
 def run_sync(coro):
-    import asyncio
-    import nest_asyncio
-    nest_asyncio.apply()
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    
-    # CRITICAL: Force sniffio to recognize the loop
-    import sniffio
-    sniffio.current_async_library_cvar.set("asyncio")
-    
-    return loop.run_until_complete(coro)
+    return get_async_runner().run(coro)
 
 # Fetch tools once
 if "openai_tools" not in st.session_state:
