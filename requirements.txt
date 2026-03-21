@@ -10,3 +10,4 @@ numpy
 asyncio
 python-dotenv
 nest-asyncio
+anyio
