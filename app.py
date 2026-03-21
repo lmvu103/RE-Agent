@@ -1,5 +1,7 @@
 import streamlit as st
 import asyncio
+import nest_asyncio
+nest_asyncio.apply()
 import json
 import pandas as pd
 import plotly.graph_objects as go
@@ -107,7 +109,14 @@ async def call_mcp_tool(name: str, arguments: dict):
 if "openai_tools" not in st.session_state:
     try:
         with st.spinner("Connecting to pyResToolbox MCP server... Loading all 108 engineering tools."):
-            tools_list = asyncio.run(get_all_tools())
+            # Check if there is already a running event loop (common in Streamlit Cloud)
+            try:
+                loop = asyncio.get_running_loop()
+                tools_list = loop.run_until_complete(get_all_tools())
+            except RuntimeError:
+                # No loop running, asyncio.run is safe
+                tools_list = asyncio.run(get_all_tools())
+            
             
             openai_tools = []
             for t in tools_list:
@@ -172,7 +181,11 @@ with tab_chat:
             st.rerun()
 
     if prompt := st.chat_input("Ask a technical question..."):
-        asyncio.run(_chat_with_agent(prompt))
+        try:
+            loop = asyncio.get_running_loop()
+            loop.run_until_complete(_chat_with_agent(prompt))
+        except RuntimeError:
+            asyncio.run(_chat_with_agent(prompt))
 
 with tab_guide:
     st.header("📖 pyResToolbox Technical Guide")
