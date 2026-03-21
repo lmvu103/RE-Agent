@@ -12,8 +12,10 @@ import os
 import sys
 
 # Path configuration for the pyrestoolbox MCP Server
-PYTHON_UV = sys.executable # Use the current python interpreter
-MCP_DIR = "./mcp_server" # Bundled directory
+PYTHON_UV = sys.executable 
+# Use absolute paths based on app.py location
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+MCP_DIR = os.path.join(ROOT_DIR, "mcp_server")
 SYSTEM_PROMPT = """You are an expert Petroleum Engineering AI Assistant equipped with the pyResToolbox tools via the Model Context Protocol (MCP).
 You can calculate PVT properties, generate IPR curves, black oil tables, and perform various other reservoir engineering tasks.
 Use the provided tools to fulfill the user requests. You can execute multiple tool calls sequentially if needed.
@@ -63,11 +65,12 @@ with st.sidebar:
 # -----------------
 @st.cache_resource
 def get_mcp_server_params():
-    import os
     env = os.environ.copy()
-    # Ensure MCP can find its own packages in 'src'
-    server_src = os.path.abspath(os.path.join(MCP_DIR, "src"))
-    env["PYTHONPATH"] = f"{server_src}{os.pathsep}{env.get('PYTHONPATH', '')}"
+    # Ensure MCP can find its own packages in 'src' absolutely
+    server_src = os.path.join(MCP_DIR, "src")
+    # Join with existing PYTHONPATH if any
+    existing_pp = env.get('PYTHONPATH', '')
+    env["PYTHONPATH"] = f"{server_src}{os.pathsep}{existing_pp}" if existing_pp else server_src
     
     return StdioServerParameters(
         command=PYTHON_UV,
