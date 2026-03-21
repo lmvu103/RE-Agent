@@ -130,9 +130,16 @@ def run_sync(coro_func, *args, **kwargs):
     
     def target():
         import asyncio
+        import sniffio
+        
+        async def _wrapper():
+            # Force sniffio to recognize the loop inside the asyncio.run context
+            sniffio.current_async_library_cvar.set("asyncio")
+            return await coro_func(*args, **kwargs)
+            
         try:
             # COMPLETELY isolated asyncio.run in a fresh thread
-            result = asyncio.run(coro_func(*args, **kwargs))
+            result = asyncio.run(_wrapper())
             future.set_result(result)
         except Exception as e:
             future.set_exception(e)
