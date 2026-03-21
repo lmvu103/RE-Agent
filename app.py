@@ -111,17 +111,17 @@ async def call_mcp_tool(name: str, arguments: dict):
 # -----------------
 # Async Helper (Thread Isolation + Streamlit Context)
 # -----------------
-def run_sync(coro):
+def run_sync(coro_func, *args, **kwargs):
     """Run a coroutine in a fresh thread/loop using anyio while preserving Streamlit context."""
     future = Future()
     
     def target():
         import anyio
-        async def _wrapper():
-            return await coro
-            
         try:
-            result = anyio.run(_wrapper, backend="asyncio")
+            # CREATE the coroutine object inside the worker thread loop
+            async def _main():
+                return await coro_func(*args, **kwargs)
+            result = anyio.run(_main, backend="asyncio")
             future.set_result(result)
         except Exception as e:
             future.set_exception(e)
@@ -136,8 +136,8 @@ def run_sync(coro):
 if "openai_tools" not in st.session_state:
     try:
         with st.spinner("Connecting to pyResToolbox MCP server... Loading all 108 engineering tools."):
-            # Use our robust helper
-            tools_list = run_sync(get_all_tools())
+            # Use our robust helper, pass the FUNCTION, not the coroutine object
+            tools_list = run_sync(get_all_tools)
             
             openai_tools = []
             for t in tools_list:
@@ -202,7 +202,7 @@ with tab_chat:
             st.rerun()
 
     if prompt := st.chat_input("Ask a technical question..."):
-        run_sync(_chat_with_agent(prompt))
+        run_sync(_chat_with_agent, prompt)
 
 with tab_guide:
     st.header("📖 pyResToolbox Technical Guide")
