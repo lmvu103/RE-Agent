@@ -112,16 +112,14 @@ async def call_mcp_tool(name: str, arguments: dict):
 # Async Helper (Thread Isolation + Streamlit Context)
 # -----------------
 def run_sync(coro_func, *args, **kwargs):
-    """Run a coroutine in a fresh thread/loop using anyio while preserving Streamlit context."""
+    """Run a coroutine in a fresh thread/loop while preserving Streamlit context."""
     future = Future()
     
     def target():
-        import anyio
+        import asyncio
         try:
-            # CREATE the coroutine object inside the worker thread loop
-            async def _main():
-                return await coro_func(*args, **kwargs)
-            result = anyio.run(_main, backend="asyncio")
+            # COMPLETELY isolated asyncio.run in a fresh thread
+            result = asyncio.run(coro_func(*args, **kwargs))
             future.set_result(result)
         except Exception as e:
             future.set_exception(e)
@@ -290,11 +288,11 @@ with tab_guide:
             """)
 
 # -----------------
-# Chat Loop (Stays global but results appear in Tab 1)
+# Chat Loop
 # -----------------
-client = AsyncOpenAI(api_key=api_key, base_url=base_url)
-
 async def _chat_with_agent(user_input):
+    # Instantiate client within the worker thread context
+    client = AsyncOpenAI(api_key=api_key, base_url=base_url)
     # Ensure current output goes to tab_chat context
     # (Streamlit handles this as long as the chat loop is triggered)
     full_prompt = user_input
