@@ -1,7 +1,5 @@
 import streamlit as st
 import asyncio
-import nest_asyncio
-nest_asyncio.apply()
 import json
 import pandas as pd
 import plotly.graph_objects as go
