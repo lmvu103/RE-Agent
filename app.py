@@ -5,7 +5,7 @@ nest_asyncio.apply()
 import json
 import pandas as pd
 import plotly.graph_objects as go
-from openai import AsyncOpenAI
+from openai import OpenAI
 from mcp import StdioServerParameters
 from mcp.client.stdio import stdio_client
 from mcp.client.session import ClientSession
@@ -122,30 +122,31 @@ async def call_mcp_tool(name: str, arguments: dict):
             return result
 
 # -----------------
-# Async Helper (Thread Isolation + Streamlit Context)
+# Async Helper (Isolated Execution)
 # -----------------
 def run_sync(coro_func, *args, **kwargs):
-    """Run a coroutine in a fresh thread/loop while preserving Streamlit context."""
+    """Run a coroutine in a fresh thread/loop to isolate MCP IO from Streamlit."""
     future = Future()
     
     def target():
         import asyncio
-        import sniffio
+        import anyio
         
-        async def _wrapper():
-            # Force sniffio to recognize the loop inside the asyncio.run context
-            sniffio.current_async_library_cvar.set("asyncio")
-            return await coro_func(*args, **kwargs)
-            
+        # Fresh loop for a fresh thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
         try:
-            # COMPLETELY isolated asyncio.run in a fresh thread
-            result = asyncio.run(_wrapper())
+            # anyio.run is great but it doesn't like existing threads sometimes.
+            # Using loop.run_until_complete is more consistent for single tasks
+            result = loop.run_until_complete(coro_func(*args, **kwargs))
             future.set_result(result)
         except Exception as e:
             future.set_exception(e)
+        finally:
+            loop.close()
 
     thread = threading.Thread(target=target)
-    # CRITICAL: Attach Streamlit context to the background thread
     add_script_run_ctx(thread)
     thread.start()
     return future.result()
@@ -220,7 +221,7 @@ with tab_chat:
             st.rerun()
 
     if prompt := st.chat_input("Ask a technical question..."):
-        run_sync(_chat_with_agent, prompt)
+        _chat_with_agent(prompt)
 
 with tab_guide:
     st.header("📖 pyResToolbox Technical Guide")
@@ -308,11 +309,10 @@ with tab_guide:
             """)
 
 # -----------------
-# Chat Loop
+# Chat Loop (Pure Streamlit Sync)
 # -----------------
-async def _chat_with_agent(user_input):
-    # Instantiate client within the worker thread context
-    client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+def _chat_with_agent(user_input):
+    client = OpenAI(api_key=api_key, base_url=base_url)
     # Ensure current output goes to tab_chat context
     # (Streamlit handles this as long as the chat loop is triggered)
     full_prompt = user_input
@@ -342,7 +342,7 @@ async def _chat_with_agent(user_input):
                 messages_for_api.append(api_msg)
 
             try:
-                response = await client.chat.completions.create(
+                response = client.chat.completions.create(
                     model=model_name,
                     messages=messages_for_api,
                     tools=openai_tools,
@@ -368,7 +368,7 @@ async def _chat_with_agent(user_input):
                         message_placeholder.markdown(f"⚙️ Executing pyResToolbox tool: `{func_name}`")
                         
                         try:
-                            tool_result = await call_mcp_tool(func_name, func_args)
+                            tool_result = run_sync(call_mcp_tool, func_name, func_args)
                             res_text = "\n".join([c.text for c in tool_result.content if getattr(c, 'type', '') == 'text'])
                             if not res_text:
                                 res_text = str([c.model_dump() for c in tool_result.content])
@@ -389,7 +389,7 @@ async def _chat_with_agent(user_input):
                         messages_for_api.append(api_msg)
 
                     message_placeholder.markdown("🧠 Analyzing results...")
-                    response = await client.chat.completions.create(
+                    response = client.chat.completions.create(
                         model=model_name, messages=messages_for_api, tools=openai_tools, tool_choice="auto"
                     )
                     response_message = response.choices[0].message
