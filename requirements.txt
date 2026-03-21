@@ -1,0 +1,11 @@
+streamlit
+pandas
+plotly
+openai
+mcp
+fastmcp
+pyrestoolbox
+pydantic
+numpy
+asyncio
+python-dotenv
