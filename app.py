@@ -45,7 +45,11 @@ model_name = MODEL_NAME
 with st.sidebar:
     st.header("⚙️ pyResToolbox AI")
     if API_KEY:
-        st.success("App connected to OpenRouter ✅")
+        # Diagnostic: Show first and last 4 chars to confirm which key is active
+        masked_key = f"{API_KEY[:6]}...{API_KEY[-4:]}"
+        st.success(f"Connected to OpenRouter ✅")
+        st.code(f"Active Key: {masked_key}")
+        st.caption("If this isn't your current key, check Streamlit Secrets.")
     else:
         st.warning("⚠️ OpenRouter API Key missing!")
         st.info("""
@@ -195,8 +199,8 @@ if "messages" not in st.session_state:
 # -----------------
 def _chat_with_agent(user_input):
     client = OpenAI(
-        api_key=api_key, 
-        base_url=base_url,
+        api_key=API_KEY, 
+        base_url=BASE_URL,
         default_headers={
             "HTTP-Referer": "https://pyrestoolbox.streamlit.app",
             "X-Title": "pyResToolbox AI Agent"
