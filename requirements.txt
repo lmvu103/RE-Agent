@@ -7,8 +7,4 @@ fastmcp
 pyrestoolbox
 pydantic
 numpy
-asyncio
 python-dotenv
-nest-asyncio
-anyio==3.7.1
-sniffio
