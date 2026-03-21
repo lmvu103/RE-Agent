@@ -45,11 +45,7 @@ model_name = MODEL_NAME
 with st.sidebar:
     st.header("⚙️ pyResToolbox AI")
     if API_KEY:
-        # Diagnostic: Show first and last 4 chars to confirm which key is active
-        masked_key = f"{API_KEY[:6]}...{API_KEY[-4:]}"
         st.success(f"Connected to OpenRouter ✅")
-        st.code(f"Active Key: {masked_key}")
-        st.caption("If this isn't your current key, check Streamlit Secrets.")
     else:
         st.warning("⚠️ OpenRouter API Key missing!")
         st.info("""
