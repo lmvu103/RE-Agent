@@ -10,5 +10,5 @@ numpy
 asyncio
 python-dotenv
 nest-asyncio
-anyio
+anyio==3.7.1
 sniffio
