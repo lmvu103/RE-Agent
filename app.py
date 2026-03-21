@@ -219,7 +219,12 @@ with tab_chat:
             st.rerun()
 
     if prompt := st.chat_input("Ask a technical question..."):
-        _chat_with_agent(prompt)
+        try:
+            _chat_with_agent(prompt)
+        except Exception as e:
+            st.error(f"Chat Loop Error: {e}")
+            import traceback
+            st.code(traceback.format_exc())
 
 with tab_guide:
     st.header("📖 pyResToolbox Technical Guide")
