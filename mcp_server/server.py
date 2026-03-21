@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
-"""Entry point for pyResToolbox MCP server.
+import os
+import sys
 
-Run with:
-    fastmcp run server.py
-
-Or for HTTP:
-    fastmcp run server.py --transport http --port 8000
-"""
+# Hardcoded fix for Streamlit Cloud to find the tech source code
+base_dir = os.path.dirname(os.path.abspath(__file__))
+src_dir = os.path.join(base_dir, "src")
+if src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
 
 from pyrestoolbox_mcp import mcp
 
 if __name__ == "__main__":
-    # Run the MCP server
-    # Default is STDIO transport for local Claude Desktop integration
     mcp.run()
