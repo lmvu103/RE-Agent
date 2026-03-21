@@ -12,6 +12,10 @@ from mcp.client.session import ClientSession
 
 import os
 import sys
+import sniffio
+
+# Force AnyIO to recognize the loop
+sniffio.current_async_library_cvar.set("asyncio")
 
 # Path configuration for the pyrestoolbox MCP Server
 PYTHON_UV = sys.executable 
@@ -105,13 +109,28 @@ async def call_mcp_tool(name: str, arguments: dict):
             result = await session.call_tool(name, arguments=arguments)
             return result
 
+def run_sync(coro):
+    import asyncio
+    import nest_asyncio
+    nest_asyncio.apply()
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    
+    # CRITICAL: Force sniffio to recognize the loop
+    import sniffio
+    sniffio.current_async_library_cvar.set("asyncio")
+    
+    return loop.run_until_complete(coro)
+
 # Fetch tools once
 if "openai_tools" not in st.session_state:
     try:
         with st.spinner("Connecting to pyResToolbox MCP server... Loading all 108 engineering tools."):
-            # Most reliable way in Streamlit is using get_event_loop + run_until_complete with nest_asyncio
-            loop = asyncio.get_event_loop()
-            tools_list = loop.run_until_complete(get_all_tools())
+            # Use our robust helper
+            tools_list = run_sync(get_all_tools())
             
             openai_tools = []
             for t in tools_list:
@@ -176,8 +195,7 @@ with tab_chat:
             st.rerun()
 
     if prompt := st.chat_input("Ask a technical question..."):
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(_chat_with_agent(prompt))
+        run_sync(_chat_with_agent(prompt))
 
 with tab_guide:
     st.header("📖 pyResToolbox Technical Guide")
