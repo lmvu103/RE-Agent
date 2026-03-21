@@ -8,8 +8,11 @@ from mcp import StdioServerParameters
 from mcp.client.stdio import stdio_client
 from mcp.client.session import ClientSession
 
+import os
+import sys
+
 # Path configuration for the pyrestoolbox MCP Server
-PYTHON_UV = "python" # Standard python for Streamlit Cloud
+PYTHON_UV = sys.executable # Use the current python interpreter
 MCP_DIR = "./mcp_server" # Bundled directory
 SYSTEM_PROMPT = """You are an expert Petroleum Engineering AI Assistant equipped with the pyResToolbox tools via the Model Context Protocol (MCP).
 You can calculate PVT properties, generate IPR curves, black oil tables, and perform various other reservoir engineering tasks.
@@ -74,11 +77,19 @@ def get_mcp_server_params():
 
 async def get_all_tools():
     params = get_mcp_server_params()
-    async with stdio_client(params) as (read, write):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
-            response = await session.list_tools()
-            return response.tools
+    try:
+        async with stdio_client(params) as (read, write):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                response = await session.list_tools()
+                return response.tools
+    except Exception as e:
+        # Try to diagnose by running the command directly for a moment
+        import subprocess
+        env = params.env if hasattr(params, 'env') else None
+        diag = subprocess.run([params.command] + params.args, capture_output=True, text=True, timeout=5, env=env)
+        error_msg = f"Failed to list tools: {e}\n\nServer Stderr:\n{diag.stderr}\nServer Stdout:\n{diag.stdout}"
+        raise Exception(error_msg)
 
 async def call_mcp_tool(name: str, arguments: dict):
     params = get_mcp_server_params()
