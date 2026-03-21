@@ -112,27 +112,19 @@ async def call_mcp_tool(name: str, arguments: dict):
 # Async Helper (Thread Isolation + Streamlit Context)
 # -----------------
 def run_sync(coro):
-    """Run a coroutine in a fresh thread/loop while preserving Streamlit context."""
+    """Run a coroutine in a fresh thread/loop using anyio while preserving Streamlit context."""
     future = Future()
     
     def target():
-        import asyncio
-        import nest_asyncio
-        import sniffio
-        
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        nest_asyncio.apply(loop)
-        # Ensure anyio/sniffio sees the loop
-        sniffio.current_async_library_cvar.set("asyncio")
-        
+        import anyio
+        async def _wrapper():
+            return await coro
+            
         try:
-            result = loop.run_until_complete(coro)
+            result = anyio.run(_wrapper, backend="asyncio")
             future.set_result(result)
         except Exception as e:
             future.set_exception(e)
-        finally:
-            loop.close()
 
     thread = threading.Thread(target=target)
     # CRITICAL: Attach Streamlit context to the background thread
