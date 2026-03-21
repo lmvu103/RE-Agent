@@ -108,29 +108,23 @@ async def call_mcp_tool(name: str, arguments: dict):
             return result
 
 # -----------------
-# Async Helper (Thread-safe)
+# Async Helper (AnyIO BlockingPortal)
 # -----------------
-class AsyncRunner:
-    def __init__(self):
-        self.loop = asyncio.new_event_loop()
-        self.thread = threading.Thread(target=self._run_loop, daemon=True)
-        self.thread.start()
-
-    def _run_loop(self):
-        import sniffio
-        sniffio.current_async_library_cvar.set("asyncio")
-        asyncio.set_event_loop(self.loop)
-        self.loop.run_forever()
-
-    def run(self, coro):
-        return asyncio.run_coroutine_threadsafe(coro, self.loop).result()
+import anyio
+from anyio.from_thread import start_blocking_portal
 
 @st.cache_resource
-def get_async_runner():
-    return AsyncRunner()
+def get_portal():
+    # start_blocking_portal handles all the threading and loop management for us
+    # and ensures ANYIO backend (asyncio) is properly detected.
+    portal = start_blocking_portal(backend="asyncio")
+    # Return context manager result (the portal itself)
+    return portal.__enter__()
 
 def run_sync(coro):
-    return get_async_runner().run(coro)
+    # Pass a lambda that returns the coroutine object so it's created and run inside the portal's loop
+    # Wait, get_all_tools() called outside returns coro object. AnyIO call accepts it.
+    return get_portal().call(lambda: coro)
 
 # Fetch tools once
 if "openai_tools" not in st.session_state:
