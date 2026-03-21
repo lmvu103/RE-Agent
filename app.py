@@ -13,7 +13,8 @@ from mcp.client.session import ClientSession
 import os
 import sys
 import threading
-import concurrent.futures
+from concurrent.futures import Future
+from streamlit.runtime.scriptrunner import add_script_run_ctx
 
 # Path configuration for the pyrestoolbox MCP Server
 PYTHON_UV = sys.executable 
@@ -108,23 +109,36 @@ async def call_mcp_tool(name: str, arguments: dict):
             return result
 
 # -----------------
-# Async Helper (AnyIO BlockingPortal)
+# Async Helper (Thread Isolation + Streamlit Context)
 # -----------------
-import anyio
-from anyio.from_thread import start_blocking_portal
-
-@st.cache_resource
-def get_portal():
-    # start_blocking_portal handles all the threading and loop management for us
-    # and ensures ANYIO backend (asyncio) is properly detected.
-    portal = start_blocking_portal(backend="asyncio")
-    # Return context manager result (the portal itself)
-    return portal.__enter__()
-
 def run_sync(coro):
-    # Pass a lambda that returns the coroutine object so it's created and run inside the portal's loop
-    # Wait, get_all_tools() called outside returns coro object. AnyIO call accepts it.
-    return get_portal().call(lambda: coro)
+    """Run a coroutine in a fresh thread/loop while preserving Streamlit context."""
+    future = Future()
+    
+    def target():
+        import asyncio
+        import nest_asyncio
+        import sniffio
+        
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        nest_asyncio.apply(loop)
+        # Ensure anyio/sniffio sees the loop
+        sniffio.current_async_library_cvar.set("asyncio")
+        
+        try:
+            result = loop.run_until_complete(coro)
+            future.set_result(result)
+        except Exception as e:
+            future.set_exception(e)
+        finally:
+            loop.close()
+
+    thread = threading.Thread(target=target)
+    # CRITICAL: Attach Streamlit context to the background thread
+    add_script_run_ctx(thread)
+    thread.start()
+    return future.result()
 
 # Fetch tools once
 if "openai_tools" not in st.session_state:
