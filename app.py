@@ -458,36 +458,18 @@ def _chat_with_agent(user_input):
             except Exception as e:
                 st.error(f"API Error: {e}")
 
-# Render Premium Custom Header
+# -----------------
+# Premium Header (App Wide)
+# -----------------
 tool_count = len(st.session_state.openai_tools) if "openai_tools" in st.session_state else 0
 header_result = _PREMIUM_HEADER(
     data={"model": MODEL_NAME, "toolCount": tool_count}, 
     key="app_header",
-    on_reset_change=lambda: None # Required to enable 'reset' attribute in result
+    on_reset_change=lambda: None
 )
-
-# Handle the Reset trigger from the Custom Component
 if getattr(header_result, "reset", False):
     st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     st.rerun()
-
-# -----------------
-# Top Control Bar (Clean Input)
-# -----------------
-prompt = st.text_input(
-    "Quick Command / Query:", 
-    placeholder="Ask a technical question... (e.g. Generate Vogel IPR curve)",
-    label_visibility="collapsed",
-    key="chat_top_input"
-)
-
-# Logic to trigger chat from either text_input OR suggestion pills
-current_prompt = None
-if prompt:
-    current_prompt = prompt
-    # Note: We need to clear the input or handle state to avoid re-triggering on scroll
-    # A common trick is to use a separate key or check if it changed
-    # For now, let's keep it simple: if prompt exists, we process it and then rerun or similar
 
 # -----------------
 # UI Tabs
@@ -495,46 +477,67 @@ if prompt:
 tab_chat, tab_guide = st.tabs(["💬 AI Agent", "📖 User Guide"])
 
 with tab_chat:
-    # Handle the submission from top input (to avoid double entry in state)
-    if current_prompt and ("last_prompt" not in st.session_state or st.session_state.last_prompt != current_prompt):
-        st.session_state.last_prompt = current_prompt
-        _chat_with_agent(current_prompt)
-        # st.rerun() # Uncommenting might be needed if state doesn't update fast enough
+    # 1. Historical Messages (TOP)
+    messages = [m for m in st.session_state.messages if m["role"] != "system"]
+    history_count = max(0, len(messages) - 2)
+    history_msgs = messages[:history_count]
+    current_msgs = messages[history_count:]
 
-    # Onboarding Pills
-    if len(st.session_state.messages) <= 1:
-        st.markdown("### 👋 How can I assist today?")
-        selected_suggestion = st.pills(
-            "Quick Tasks:", 
-            list(SUGGESTIONS.keys()), 
-            label_visibility="collapsed"
+    if history_msgs:
+        for m in history_msgs:
+            if m["role"] == "tool": continue
+            if isinstance(m.get("tool_calls"), list):
+                func_calls = [tc["function"]["name"] for tc in m["tool_calls"]]
+                with st.chat_message("assistant", avatar="🤖"):
+                    st.markdown(f"🛠️ **PERE Agents** used: `{', '.join(func_calls)}`")
+                continue
+            with st.chat_message(m["role"], avatar="🤖" if m["role"] == "assistant" else "👤"):
+                st.markdown(m["content"])
+        st.divider()
+
+    # 2. Command Area (MIDDLE)
+    col_input, col_reset = st.columns([5, 1])
+    with col_input:
+        prompt = st.text_input(
+            "Command Area:", 
+            placeholder="Ask PERE Agents a technical question...",
+            label_visibility="collapsed",
+            key="chat_top_input"
         )
+    with col_reset:
+        if st.button("🔄 Reset", use_container_width=True):
+            st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+            st.rerun()
+
+    # 3. Active Results (BOTTOM)
+    if prompt and ("last_prompt" not in st.session_state or st.session_state.last_prompt != prompt):
+        st.session_state.last_prompt = prompt
+        with st.container():
+            st.markdown("### 🏹 Active Analysis")
+            _chat_with_agent(prompt)
+            st.rerun()
+
+    if current_msgs:
+        st.markdown("### 🏹 Latest Interaction")
+        for m in current_msgs:
+            if m["role"] == "tool": continue
+            if isinstance(m.get("tool_calls"), list):
+                func_calls = [tc["function"]["name"] for tc in m["tool_calls"]]
+                with st.chat_message("assistant", avatar="🤖"):
+                    st.markdown(f"🛠️ **PERE Agents** used: `{', '.join(func_calls)}`")
+                continue
+            with st.chat_message(m["role"], avatar="🤖" if m["role"] == "assistant" else "👤"):
+                st.markdown(m["content"])
+    
+    if not messages:
+        st.markdown("### 👋 How can I assist today?")
+        selected_suggestion = st.pills("Quick Tasks:", list(SUGGESTIONS.keys()), label_visibility="collapsed")
         if selected_suggestion:
             _chat_with_agent(SUGGESTIONS[selected_suggestion])
             st.rerun()
 
-    # Render previous messages
-    for idx, msg in enumerate(st.session_state.messages):
-        if msg["role"] == "system": 
-            continue
-        if msg["role"] == "tool":
-            continue 
-            
-        display_content = msg.get("content", "")
-        if isinstance(msg.get("tool_calls"), list):
-            func_calls = [tc["function"]["name"] for tc in msg["tool_calls"]]
-            with st.chat_message("assistant", avatar="🤖"):
-                st.markdown(f"🛠️ **PERE Agents** used the following tools: `{', '.join(func_calls)}`")
-            continue
-
-        if display_content and isinstance(display_content, str):
-            with st.chat_message(msg["role"], avatar="🤖" if msg["role"] == "assistant" else "👤"):
-                st.markdown(display_content)
-
-    st.divider()
-
 with tab_guide:
-    st.header("📖 pyResToolbox Technical Guide")
+    st.header("📖 PERE Agents Technical Guide")
     st.markdown("Advanced Reservoir Engineering & Production Optimization Toolkit.")
     
     col1, col2 = st.columns(2)
