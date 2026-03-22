@@ -576,13 +576,6 @@ with tab_chat:
             _chat_with_agent(SUGGESTIONS[sel])
             st.rerun()
 
-    # Suggestions only if truly empty
-    if not messages:
-        st.markdown("### 👋 Hello! How can I assist you with Reservoir Engineering today?")
-        sel_pill = st.pills("Trending tasks:", list(SUGGESTIONS.keys()), label_visibility="collapsed")
-        if sel_pill:
-            _chat_with_agent(SUGGESTIONS[sel_pill])
-            st.rerun()
 
 with tab_guide:
     st.header("📖 PERE Agents Technical Guide")
