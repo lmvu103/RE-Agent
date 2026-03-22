@@ -14,6 +14,110 @@ import threading
 from concurrent.futures import Future
 from streamlit.runtime.scriptrunner import add_script_run_ctx
 
+# -----------------
+# Premium Custom Component v2 (CCv2)
+# -----------------
+# Define a sleek glassmorphic header component
+_PREMIUM_HEADER = st.components.v2.component(
+    "pyres_header",
+    html="""
+    <div class="header-container">
+        <div class="logo-area">
+            <span class="logo-icon">🚀</span>
+            <div class="logo-text">
+                <div class="main-title">pyResToolbox AI</div>
+                <div class="sub-title">Reservoir Engineering Assistant</div>
+            </div>
+        </div>
+        <div class="status-area">
+            <div class="status-chip" id="model-chip">
+                <span class="label">MODEL</span>
+                <span class="value">...</span>
+            </div>
+            <div class="status-chip" id="tools-chip">
+                <span class="label">TOOLS</span>
+                <span class="value">...</span>
+            </div>
+        </div>
+    </div>
+    """,
+    css=\"\"\"
+    .header-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        margin-bottom: 1.5rem;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        color: var(--st-text-color);
+    }
+    .logo-area {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .logo-icon {
+        font-size: 2rem;
+        filter: drop-shadow(0 0 8px rgba(79, 172, 254, 0.5));
+    }
+    .main-title {
+        font-size: 1.25rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    .sub-title {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--st-secondary-text-color);
+        opacity: 0.8;
+    }
+    .status-area {
+        display: flex;
+        gap: 0.75rem;
+    }
+    .status-chip {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 6px 14px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .status-chip .label {
+        font-size: 0.6rem;
+        font-weight: 700;
+        color: var(--st-secondary-text-color);
+        margin-bottom: 2px;
+    }
+    .status-chip .value {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--st-primary-color);
+    }
+    \"\"\",
+    js="""
+    export default function (component) {
+        const { data, parentElement } = component
+        if (!data) return
+        
+        const modelVal = parentElement.querySelector("#model-chip .value")
+        const toolsVal = parentElement.querySelector("#tools-chip .value")
+        
+        if (modelVal) modelVal.textContent = (data.model || "None").replace("models/", "")
+        if (toolsVal) toolsVal.textContent = data.toolCount || "0"
+    }
+    """
+)
+
 # Path configuration for the pyrestoolbox MCP Server
 PYTHON_UV = sys.executable 
 # Use absolute paths based on app.py location
@@ -324,6 +428,10 @@ def _chat_with_agent(user_input):
 
             except Exception as e:
                 st.error(f"API Error: {e}")
+
+# Render Premium Custom Header at the top of the app
+tool_count = len(st.session_state.openai_tools) if "openai_tools" in st.session_state else 0
+_PREMIUM_HEADER(data={"model": MODEL_NAME, "toolCount": tool_count}, key="app_header")
 
 # -----------------
 # UI Tabs
