@@ -30,30 +30,29 @@ Format for charts: {"plot_type": "line", "x_label": "X", "y_label": "Y", "series
 """
 
 # -----------------
-# Fixed Configuration (OpenRouter)
+# Configuration & Sidebar Settings
 # -----------------
-# Get API KEY from st.secrets (Streamlit Cloud) or fall back to user-provided key.
-API_KEY = st.secrets.get("OPENROUTER_API_KEY", "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")
+API_KEY_DEFAULT = st.secrets.get("OPENROUTER_API_KEY", "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")
 BASE_URL = "https://openrouter.ai/api/v1"
-MODEL_NAME = "google/gemini-2.0-flash-001"
-
-# Map to legacy variable names for compatibility
-api_key = API_KEY
-base_url = BASE_URL
-model_name = MODEL_NAME
 
 with st.sidebar:
-    st.header("⚙️ pyResToolbox AI")
-    if API_KEY:
-        st.success(f"Connected to OpenRouter ✅")
+    st.header("⚙️ Agent Settings")
+    API_KEY = st.text_input("OpenRouter API Key", value=API_KEY_DEFAULT, type="password", help="Enter your OpenRouter key here.")
+    MODEL_NAME = st.selectbox("LLM Model", [
+        "google/gemini-2.0-flash-001",
+        "google/gemini-pro-1.5-exp",
+        "openai/gpt-4o",
+        "anthropic/claude-3.5-sonnet",
+        "deepseek/deepseek-chat"
+    ], help="Select which model to use via OpenRouter.")
+    AGENT_NAME = st.text_input("Agent Display Name", value="pyResToolbox AI")
+    
+    if not API_KEY:
+        st.warning("⚠️ API Key missing!")
     else:
-        st.warning("⚠️ OpenRouter API Key missing!")
-        st.info("""
-        Please set your **OPENROUTER_API_KEY** in Streamlit Cloud Secrets:
-        1. Go to your App Dashboard
-        2. Click **Settings** -> **Secrets**
-        3. Add: `OPENROUTER_API_KEY = "your-key-here"`
-        """)
+        st.success("Configuration Ready ✅")
+
+    st.divider()
     
     st.divider()
     with st.expander("💡 Example Queries", expanded=True):
@@ -199,7 +198,7 @@ def _chat_with_agent(user_input):
         base_url=BASE_URL,
         default_headers={
             "HTTP-Referer": "https://pyrestoolbox.streamlit.app",
-            "X-Title": "pyResToolbox AI Agent"
+            "X-Title": AGENT_NAME
         }
     )
     # Ensure current output goes to tab_chat context
@@ -232,7 +231,7 @@ def _chat_with_agent(user_input):
 
             try:
                 response = client.chat.completions.create(
-                    model=model_name,
+                    model=MODEL_NAME,
                     messages=messages_for_api,
                     tools=openai_tools,
                     tool_choice="auto"
@@ -280,7 +279,7 @@ def _chat_with_agent(user_input):
 
                     message_placeholder.markdown("🧠 Analyzing results...")
                     response = client.chat.completions.create(
-                        model=model_name, messages=messages_for_api, tools=openai_tools, tool_choice="auto"
+                        model=MODEL_NAME, messages=messages_for_api, tools=openai_tools, tool_choice="auto"
                     )
                     response_message = response.choices[0].message
                     msg_dict = {"role": response_message.role, "content": response_message.content}
