@@ -427,7 +427,7 @@ def _chat_with_agent(user_input):
                             })
                     st.session_state.messages.append(msg_dict)
                 
-                # Final rendering logic
+                # Final rendering logic (Tables and Charts)
                 final_text = response_message.content or ""
                 json_start = final_text.rfind("```json")
                 json_end = final_text.rfind("```", json_start + 7)
@@ -440,14 +440,39 @@ def _chat_with_agent(user_input):
                     try:
                         plot_data = json.loads(json_str)
                         if plot_data.get("plot_type") == "table":
-                            st.dataframe(pd.DataFrame(plot_data.get("data", {})))
-                        elif plot_type := plot_data.get("plot_type") == "line":
+                            df = pd.DataFrame(plot_data.get("data", {}))
+                            st.dataframe(df, use_container_width=True)
+                            
+                            # Export Table
+                            csv = df.to_csv(index=False).encode('utf-8')
+                            st.download_button(
+                                label="📥 Download Results as CSV",
+                                data=csv,
+                                file_name=f"PERE_Analysis_{len(st.session_state.messages)}.csv",
+                                mime='text/csv',
+                            )
+                        elif plot_data.get("plot_type") == "line":
                             fig = go.Figure()
                             for s_name, s_data in plot_data.get("series", {}).items():
                                 fig.add_trace(go.Scatter(x=s_data["x"], y=s_data["y"], mode='lines+markers', name=s_name))
-                            fig.update_layout(xaxis_title=plot_data.get("x_label", "X"), yaxis_title=plot_data.get("y_label", "Y"), title=plot_data.get("title", "Simulation"))
+                            
+                            fig.update_layout(
+                                xaxis_title=plot_data.get("x_label", "X"), 
+                                yaxis_title=plot_data.get("y_label", "Y"), 
+                                title=plot_data.get("title", "Engineering Simulation")
+                            )
                             st.plotly_chart(fig, use_container_width=True)
-                    except:
+                            
+                            # Export Plot (Interactive HTML)
+                            plot_html = fig.to_html().encode('utf-8')
+                            st.download_button(
+                                label="🎨 Download Interactive Plot (HTML)",
+                                data=plot_html,
+                                file_name=f"PERE_Plot_{len(st.session_state.messages)}.html",
+                                mime='text/html',
+                            )
+                    except Exception as plot_e:
+                        st.warning(f"Formatting Data Error: {plot_e}")
                         st.code(json_str)
                 else:
                     message_placeholder.markdown(final_text)
