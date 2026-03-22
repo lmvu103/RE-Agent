@@ -325,7 +325,7 @@ def _chat_with_agent(user_input):
 
         with st.chat_message("assistant", avatar="🤖"):
             message_placeholder = st.empty()
-            message_placeholder.markdown("🧠 Thinking...")
+            message_placeholder.markdown("🧠 **Petroleum AI** is thinking...")
             
             # Format messages for OpenAI
             messages_for_api = []
@@ -361,7 +361,7 @@ def _chat_with_agent(user_input):
                     for tool_call in response_message.tool_calls:
                         func_name = tool_call.function.name
                         func_args = json.loads(tool_call.function.arguments)
-                        message_placeholder.markdown(f"⚙️ Executing: `{func_name}`")
+                        message_placeholder.markdown(f"⚙️ **Assistant** executing technical tool: `{func_name}`")
                         
                         try:
                             tool_result = run_sync(call_mcp_tool, func_name, func_args)
@@ -384,7 +384,7 @@ def _chat_with_agent(user_input):
                         if "name" in m: api_msg["name"] = m["name"]
                         messages_for_api.append(api_msg)
 
-                    message_placeholder.markdown("🧠 Analyzing results...")
+                    message_placeholder.markdown("🧠 **Petroleum AI** is analyzing engineering data...")
                     response = client.chat.completions.create(
                         model=MODEL_NAME, messages=messages_for_api, tools=openai_tools, tool_choice="auto"
                     )
@@ -462,7 +462,7 @@ with tab_chat:
         if isinstance(msg.get("tool_calls"), list):
             func_calls = [tc["function"]["name"] for tc in msg["tool_calls"]]
             with st.chat_message("assistant", avatar="🤖"):
-                st.markdown(f"*(Called: `{', '.join(func_calls)}`)*")
+                st.markdown(f"🛠️ **Petroleum AI** used the following tools: `{', '.join(func_calls)}`")
             continue
 
         if display_content and isinstance(display_content, str):
