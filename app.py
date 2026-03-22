@@ -41,7 +41,7 @@ _PREMIUM_HEADER = st.components.v2.component(
         </div>
     </div>
     """,
-    css=\"\"\"
+    css="""
     .header-container {
         display: flex;
         justify-content: space-between;
@@ -103,7 +103,7 @@ _PREMIUM_HEADER = st.components.v2.component(
         font-weight: 600;
         color: var(--st-primary-color);
     }
-    \"\"\",
+    """,
     js="""
     export default function (component) {
         const { data, parentElement } = component
