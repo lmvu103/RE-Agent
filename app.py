@@ -30,27 +30,27 @@ Format for charts: {"plot_type": "line", "x_label": "X", "y_label": "Y", "series
 """
 
 # -----------------
-# Configuration & Sidebar Settings
+# Configuration (Google Gemini / Google AI Studio)
 # -----------------
-API_KEY_DEFAULT = st.secrets.get("OPENROUTER_API_KEY", "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")
-BASE_URL = "https://openrouter.ai/api/v1"
+# DEFAULT API KEY from user (AIza...)
+API_KEY_DEFAULT = st.secrets.get("GEMINI_API_KEY", "AIzaSyD4YKKSJ7robWbM6iaexZ4as09MyISqx-c")
+# Google's OpenAI-compatible endpoint
+BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 
 with st.sidebar:
     st.header("⚙️ Agent Settings")
-    API_KEY = st.text_input("OpenRouter API Key", value=API_KEY_DEFAULT, type="password", help="Enter your OpenRouter key here.")
-    MODEL_NAME = st.selectbox("LLM Model", [
-        "google/gemini-2.0-flash-001",
-        "google/gemini-pro-1.5-exp",
-        "openai/gpt-4o",
-        "anthropic/claude-3.5-sonnet",
-        "deepseek/deepseek-chat"
-    ], help="Select which model to use via OpenRouter.")
+    API_KEY = st.text_input("Google AI Studio (Gemini) API Key", value=API_KEY_DEFAULT, type="password", help="Enter your Gemini key here.")
+    MODEL_NAME = st.selectbox("Gemini Model", [
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-pro-latest",
+        "gemini-2.0-flash-exp"
+    ], help="Select which Gemini model to use.")
     AGENT_NAME = st.text_input("Agent Display Name", value="pyResToolbox AI")
     
     if not API_KEY:
-        st.warning("⚠️ API Key missing!")
+        st.warning("⚠️ Google Gemini API Key missing!")
     else:
-        st.success("Configuration Ready ✅")
+        st.success("App connected to Gemini AI ✅")
 
     st.divider()
     
@@ -196,10 +196,6 @@ def _chat_with_agent(user_input):
     client = OpenAI(
         api_key=API_KEY, 
         base_url=BASE_URL,
-        default_headers={
-            "HTTP-Referer": "https://pyrestoolbox.streamlit.app",
-            "X-Title": AGENT_NAME
-        }
     )
     # Ensure current output goes to tab_chat context
     # (Streamlit handles this as long as the chat loop is triggered)
