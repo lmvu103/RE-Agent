@@ -562,21 +562,23 @@ with tab_chat:
             _chat_with_agent(u_prompt)
             st.rerun() # Rerun to place the new interacton in the 'Active Analysis' persistent view
 
-    # Persistent view of the latest interaction
+    # Persistent view of the latest interaction (including Thinking or Final Results)
     if current_msgs:
-        st.markdown("### 🏹 Latest Analysis Results")
-        for m in current_msgs:
-            if isinstance(m.get("tool_calls"), list):
-                func_calls = [tc["function"]["name"] for tc in m["tool_calls"]]
-                with st.chat_message("assistant", avatar="🤖"):
-                    st.markdown(f"🛠️ **PERE Agents** used technical tools: `{', '.join(func_calls)}`")
-                continue
-            
-            with st.chat_message(m["role"], avatar="🤖" if m["role"] == "assistant" else "👤"):
-                # Use a specific logic helper or inline it to handle the JSON charts/tables in history
+        st.markdown("### 🏹 Active Analysis Result")
+        for i, m in enumerate(current_msgs):
+            role = m.get("role")
+            avatar = "🤖" if role == "assistant" else "👤"
+            with st.chat_message(role, avatar=avatar):
                 content = m.get("content", "")
-                if m["role"] == "assistant" and "```json" in content:
-                    # Reuse the refined table/chart logic
+                
+                # Check for tool calls first
+                if isinstance(m.get("tool_calls"), list):
+                    func_names = [tc["function"]["name"] for tc in m["tool_calls"]]
+                    st.markdown(f"🛠️ **PERE Agents** utilized: `{', '.join(func_names)}`")
+                    continue
+                
+                # Handle JSON visualizations (Tables/Charts)
+                if role == "assistant" and "```json" in content:
                     json_start = content.rfind("```json")
                     json_end = content.rfind("```", json_start + 7)
                     if json_start != -1 and json_end != -1:
@@ -586,13 +588,15 @@ with tab_chat:
                             if plot_data.get("plot_type") == "table":
                                 df = pd.DataFrame(plot_data.get("data", {}))
                                 st.dataframe(df, use_container_width=True)
-                                st.download_button("📥 Export Table (CSV)", df.to_csv(index=False), f"PERE_Table_{idx}.csv", "text/csv")
+                                st.download_button("📥 Export Table (CSV)", df.to_csv(index=False), f"PERE_Table_{i}.csv", "text/csv")
                             elif plot_data.get("plot_type") == "line":
                                 fig = go.Figure()
                                 for s_n, s_d in plot_data.get("series", {}).items():
                                     fig.add_trace(go.Scatter(x=s_d["x"], y=s_d["y"], name=s_n))
                                 st.plotly_chart(fig, use_container_width=True)
-                        except:
+                                st.download_button("🎨 Export Chart (HTML)", fig.to_html().encode("utf-8"), f"PERE_Plot_{i}.html", "text/html")
+                        except Exception as e_plot:
+                            st.warning(f"Technical formatting issue: {e_plot}")
                             st.code(content[json_start+7 : json_end].strip())
                     else:
                         st.markdown(content)
