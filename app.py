@@ -38,6 +38,10 @@ _PREMIUM_HEADER = st.components.v2.component(
                 <span class="label">TOOLS</span>
                 <span class="value">...</span>
             </div>
+            <div class="status-chip reset-chip" id="reset-chip">
+                <span class="label">ACTIONS</span>
+                <span class="value">Reset Chat</span>
+            </div>
         </div>
     </div>
     """,
@@ -92,28 +96,53 @@ _PREMIUM_HEADER = st.components.v2.component(
         border-radius: 10px;
         border: 1px solid rgba(255, 255, 255, 0.05);
     }
+    .reset-chip {
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid rgba(255, 69, 58, 0.1);
+    }
+    .reset-chip:hover {
+        background: rgba(255, 69, 58, 0.1);
+        border-color: rgba(255, 69, 58, 0.4);
+        transform: translateY(-1px);
+    }
+    .reset-chip:active {
+        transform: translateY(1px);
+    }
     .status-chip .label {
         font-size: 0.6rem;
         font-weight: 700;
         color: var(--st-secondary-text-color);
         margin-bottom: 2px;
+        pointer-events: none;
     }
     .status-chip .value {
         font-size: 0.85rem;
         font-weight: 600;
         color: var(--st-primary-color);
+        pointer-events: none;
+    }
+    .reset-chip .value {
+        color: #ff453a !important;
     }
     """,
     js="""
     export default function (component) {
-        const { data, parentElement } = component
+        const { data, parentElement, setTriggerValue } = component
         if (!data) return
         
         const modelVal = parentElement.querySelector("#model-chip .value")
         const toolsVal = parentElement.querySelector("#tools-chip .value")
+        const resetBtn = parentElement.querySelector("#reset-chip")
         
         if (modelVal) modelVal.textContent = (data.model || "None").replace("models/", "")
         if (toolsVal) toolsVal.textContent = data.toolCount || "0"
+        
+        if (resetBtn) {
+            resetBtn.onclick = () => {
+                setTriggerValue("reset", true)
+            }
+        }
     }
     """
 )
@@ -431,31 +460,26 @@ def _chat_with_agent(user_input):
 
 # Render Premium Custom Header
 tool_count = len(st.session_state.openai_tools) if "openai_tools" in st.session_state else 0
-_PREMIUM_HEADER(data={"model": MODEL_NAME, "toolCount": tool_count}, key="app_header")
+header_result = _PREMIUM_HEADER(
+    data={"model": MODEL_NAME, "toolCount": tool_count}, 
+    key="app_header",
+    on_reset_change=lambda: None # Required to enable 'reset' attribute in result
+)
 
-st.info("👋 Hello! I am your Petroleum AI. How can I help you today?")
+# Handle the Reset trigger from the Custom Component
+if getattr(header_result, "reset", False):
+    st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    st.rerun()
 
 # -----------------
-# Top Control Bar (Input & Reset)
+# Top Control Bar (Clean Input)
 # -----------------
-with st.container():
-    col_input, col_reset = st.columns([5, 1])
-    with col_input:
-        # Use on_change to submit without needing a separate button if possible
-        if "chat_input_val" not in st.session_state:
-            st.session_state.chat_input_val = ""
-        
-        prompt = st.text_input(
-            "Quick Command / Query:", 
-            placeholder="Ask a technical question or use a suggestion below...",
-            label_visibility="collapsed",
-            key="chat_top_input"
-        )
-    
-    with col_reset:
-        if st.button("🔄 Reset Chat", use_container_width=True, help="Clear all previous messages and starts over."):
-            st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-            st.rerun()
+prompt = st.text_input(
+    "Quick Command / Query:", 
+    placeholder="Ask a technical question... (e.g. Generate Vogel IPR curve)",
+    label_visibility="collapsed",
+    key="chat_top_input"
+)
 
 # Logic to trigger chat from either text_input OR suggestion pills
 current_prompt = None
