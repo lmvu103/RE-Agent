@@ -290,31 +290,44 @@ if getattr(header_result, "reset", False):
 tab_chat, tab_guide = st.tabs(["💬 AI Agent", "📖 User Guide"])
 
 with tab_chat:
-    all_msgs = [m for m in st.session_state.messages if m["role"] != "system" and m["role"] != "tool"]
-    last_u_idx = next((i for i in range(len(all_msgs)-1, -1, -1) if all_msgs[i]["role"] == "user"), -1)
-    hist, active = (all_msgs[:last_u_idx], all_msgs[last_u_idx:]) if last_u_idx != -1 else (all_msgs, [])
-
-    # History
-    if hist:
-        for i, m in enumerate(hist): display_msg(m, f"h_{i}")
-        st.divider()
-
-    # Command Area
+    # 0. Submission Logic (Top level of tab to update state BEFORE rendering)
     with st.container(border=True):
-        prompt = st.text_input("Technical Query:", placeholder="Enter command...", label_visibility="collapsed", key="v8_input")
-        if st.button("🔄 Reset Chat", key="reset_v8"):
+        prompt = st.text_input("Technical Query:", placeholder="Enter command...", label_visibility="collapsed", key="v9_input")
+        if st.button("🔄 Reset Chat", key="reset_v9") or getattr(header_result, "reset", False):
             st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
             st.rerun()
 
-    # Results
-    if prompt and ("p_v8" not in st.session_state or st.session_state.p_v8 != prompt):
-        st.session_state.p_v8 = prompt
+    # Process new prompt
+    if prompt and ("p_v9" not in st.session_state or st.session_state.p_v9 != prompt):
+        st.session_state.p_v9 = prompt
         _chat_with_agent(prompt)
         st.rerun()
 
-    if active:
-        for i, m in enumerate(active): display_msg(m, f"a_{i}")
+    # 1. Message Management (Now reflects the LATEST result)
+    all_msgs = [m for m in st.session_state.messages if m["role"] != "system" and m["role"] != "tool"]
+    last_u_idx = next((i for i in range(len(all_msgs)-1, -1, -1) if all_msgs[i]["role"] == "user"), -1)
+    
+    if last_u_idx != -1:
+        hist = all_msgs[:last_u_idx]
+        active = all_msgs[last_u_idx:]
+    else:
+        hist = all_msgs
+        active = []
 
+    # 2. History Area (Scrollable Top)
+    if hist:
+        for i, m in enumerate(hist):
+            display_msg(m, f"h_{i}")
+        st.divider()
+
+    # 3. Active Results Area (Bottom)
+    if active:
+        for i, m in enumerate(active):
+            if m["role"] == "assistant" and i == len(active)-1:
+                st.caption("Latest Final Answer:")
+            display_msg(m, f"a_{i}")
+    
+    # Onboarding
     if not all_msgs:
         sel = st.pills("Start with:", ["📈 Vogel IPR Curve", "🧪 Oil PVT Properties", "☁️ Z-Factor Calculation"])
         if sel:
