@@ -25,7 +25,7 @@ _PREMIUM_HEADER = st.components.v2.component(
         <div class="logo-area">
             <span class="logo-icon">🚀</span>
             <div class="logo-text">
-                <div class="main-title">pyResToolbox AI</div>
+                <div class="main-title">PERE Agents</div>
                 <div class="sub-title">Reservoir Engineering Assistant</div>
             </div>
         </div>
@@ -123,7 +123,7 @@ PYTHON_UV = sys.executable
 # Use absolute paths based on app.py location
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 MCP_DIR = os.path.join(ROOT_DIR, "mcp_server")
-SYSTEM_PROMPT = """You are an expert Petroleum Engineering AI Assistant equipped with the pyResToolbox tools via the Model Context Protocol (MCP).
+SYSTEM_PROMPT = """You are an expert Petroleum Engineering AI Assistant (PERE Agents) equipped with the pyResToolbox tools via the Model Context Protocol (MCP).
 You can calculate PVT properties, generate IPR curves, black oil tables, and perform various other reservoir engineering tasks.
 Use the provided tools to fulfill the user requests. You can execute multiple tool calls sequentially if needed.
 
@@ -151,7 +151,7 @@ with st.sidebar:
         "gemini-flash-latest",
         "gemini-2.5-pro"
     ], help="Select which Gemini model to use.")
-    AGENT_NAME = st.text_input("Agent Display Name", value="pyResToolbox AI")
+    AGENT_NAME = st.text_input("Agent Display Name", value="PERE Agents")
     
     if not API_KEY:
         st.warning("⚠️ Google Gemini API Key missing!")
@@ -325,7 +325,7 @@ def _chat_with_agent(user_input):
 
         with st.chat_message("assistant", avatar="🤖"):
             message_placeholder = st.empty()
-            message_placeholder.markdown("🧠 **Petroleum AI** is thinking...")
+            message_placeholder.markdown("🧠 **PERE Agents** is thinking...")
             
             # Format messages for OpenAI
             messages_for_api = []
@@ -384,7 +384,7 @@ def _chat_with_agent(user_input):
                         if "name" in m: api_msg["name"] = m["name"]
                         messages_for_api.append(api_msg)
 
-                    message_placeholder.markdown("🧠 **Petroleum AI** is analyzing engineering data...")
+                    message_placeholder.markdown("🧠 **PERE Agents** is analyzing engineering data...")
                     response = client.chat.completions.create(
                         model=MODEL_NAME, messages=messages_for_api, tools=openai_tools, tool_choice="auto"
                     )
@@ -432,6 +432,8 @@ def _chat_with_agent(user_input):
 # Render Premium Custom Header
 tool_count = len(st.session_state.openai_tools) if "openai_tools" in st.session_state else 0
 _PREMIUM_HEADER(data={"model": MODEL_NAME, "toolCount": tool_count}, key="app_header")
+
+st.info("👋 Hello! I am your Petroleum AI. How can I help you today?")
 
 # -----------------
 # Top Control Bar (Input & Reset)
@@ -498,7 +500,7 @@ with tab_chat:
         if isinstance(msg.get("tool_calls"), list):
             func_calls = [tc["function"]["name"] for tc in msg["tool_calls"]]
             with st.chat_message("assistant", avatar="🤖"):
-                st.markdown(f"🛠️ **Petroleum AI** used the following tools: `{', '.join(func_calls)}`")
+                st.markdown(f"🛠️ **PERE Agents** used the following tools: `{', '.join(func_calls)}`")
             continue
 
         if display_content and isinstance(display_content, str):
