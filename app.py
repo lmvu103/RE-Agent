@@ -496,69 +496,115 @@ if getattr(header_result, "reset", False):
     st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     st.rerun()
 
-# -----------------
-# UI Tabs
-# -----------------
 tab_chat, tab_guide = st.tabs(["💬 AI Agent", "📖 User Guide"])
 
 with tab_chat:
-    # 1. Historical Messages (TOP)
-    messages = [m for m in st.session_state.messages if m["role"] != "system"]
-    history_count = max(0, len(messages) - 2)
-    history_msgs = messages[:history_count]
-    current_msgs = messages[history_count:]
+    # -----------------
+    # 1. Message Management
+    # -----------------
+    # Get all non-system, non-tool messages
+    messages = [m for m in st.session_state.messages if m["role"] != "system" and m["role"] != "tool"]
+    
+    # Identify the start of the latest interaction (the last user prompt)
+    last_user_idx = -1
+    for i in range(len(messages) - 1, -1, -1):
+        if messages[i]["role"] == "user":
+            last_user_idx = i
+            break
+            
+    if last_user_idx != -1:
+        history_msgs = messages[:last_user_idx]
+        current_msgs = messages[last_user_idx:]
+    else:
+        history_msgs = messages
+        current_msgs = []
 
+    # -----------------
+    # 2. Historical Messages (TOP)
+    # -----------------
     if history_msgs:
-        for m in history_msgs:
-            if m["role"] == "tool": continue
-            if isinstance(m.get("tool_calls"), list):
-                func_calls = [tc["function"]["name"] for tc in m["tool_calls"]]
-                with st.chat_message("assistant", avatar="🤖"):
-                    st.markdown(f"🛠️ **PERE Agents** used: `{', '.join(func_calls)}`")
-                continue
-            with st.chat_message(m["role"], avatar="🤖" if m["role"] == "assistant" else "👤"):
-                st.markdown(m["content"])
+        with st.container():
+            for m in history_msgs:
+                if isinstance(m.get("tool_calls"), list):
+                    func_calls = [tc["function"]["name"] for tc in m["tool_calls"]]
+                    with st.chat_message("assistant", avatar="🤖"):
+                        st.markdown(f"🛠️ **PERE Agents** used: `{', '.join(func_calls)}`")
+                    continue
+                with st.chat_message(m["role"], avatar="🤖" if m["role"] == "assistant" else "👤"):
+                    st.markdown(m["content"])
         st.divider()
 
-    # 2. Command Area (MIDDLE)
-    col_input, col_reset = st.columns([5, 1])
-    with col_input:
-        prompt = st.text_input(
+    # -----------------
+    # 3. Command Area (MIDDLE)
+    # -----------------
+    cmd_col, res_col = st.columns([5, 1])
+    with cmd_col:
+        u_prompt = st.text_input(
             "Command Area:", 
-            placeholder="Ask PERE Agents a technical question...",
+            placeholder="Search, analyze, simulate... (e.g. Reservoir simulation)",
             label_visibility="collapsed",
-            key="chat_top_input"
+            key="chat_top_bar"
         )
-    with col_reset:
-        if st.button("🔄 Reset", use_container_width=True):
+    with res_col:
+        if st.button("🔄 Reset", key="reset_mid", use_container_width=True):
             st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
             st.rerun()
 
-    # 3. Active Results (BOTTOM)
-    if prompt and ("last_prompt" not in st.session_state or st.session_state.last_prompt != prompt):
-        st.session_state.last_prompt = prompt
+    # -----------------
+    # 4. Active Analysis (BOTTOM)
+    # -----------------
+    # Handle the submission
+    if u_prompt and ("last_processed" not in st.session_state or st.session_state.last_processed != u_prompt):
+        st.session_state.last_processed = u_prompt
+        # Trigger the AI
         with st.container():
-            st.markdown("### 🏹 Active Analysis")
-            _chat_with_agent(prompt)
-            st.rerun()
+            st.markdown("### 🏹 Thinking and Analyzing...")
+            _chat_with_agent(u_prompt)
+            st.rerun() # Rerun to place the new interacton in the 'Active Analysis' persistent view
 
+    # Persistent view of the latest interaction
     if current_msgs:
-        st.markdown("### 🏹 Latest Interaction")
+        st.markdown("### 🏹 Latest Analysis Results")
         for m in current_msgs:
-            if m["role"] == "tool": continue
             if isinstance(m.get("tool_calls"), list):
                 func_calls = [tc["function"]["name"] for tc in m["tool_calls"]]
                 with st.chat_message("assistant", avatar="🤖"):
-                    st.markdown(f"🛠️ **PERE Agents** used: `{', '.join(func_calls)}`")
+                    st.markdown(f"🛠️ **PERE Agents** used technical tools: `{', '.join(func_calls)}`")
                 continue
+            
             with st.chat_message(m["role"], avatar="🤖" if m["role"] == "assistant" else "👤"):
-                st.markdown(m["content"])
-    
+                # Use a specific logic helper or inline it to handle the JSON charts/tables in history
+                content = m.get("content", "")
+                if m["role"] == "assistant" and "```json" in content:
+                    # Reuse the refined table/chart logic
+                    json_start = content.rfind("```json")
+                    json_end = content.rfind("```", json_start + 7)
+                    if json_start != -1 and json_end != -1:
+                        st.markdown(content[:json_start].strip())
+                        try:
+                            plot_data = json.loads(content[json_start+7 : json_end].strip())
+                            if plot_data.get("plot_type") == "table":
+                                df = pd.DataFrame(plot_data.get("data", {}))
+                                st.dataframe(df, use_container_width=True)
+                                st.download_button("📥 Export Table (CSV)", df.to_csv(index=False), f"PERE_Table_{idx}.csv", "text/csv")
+                            elif plot_data.get("plot_type") == "line":
+                                fig = go.Figure()
+                                for s_n, s_d in plot_data.get("series", {}).items():
+                                    fig.add_trace(go.Scatter(x=s_d["x"], y=s_d["y"], name=s_n))
+                                st.plotly_chart(fig, use_container_width=True)
+                        except:
+                            st.code(content[json_start+7 : json_end].strip())
+                    else:
+                        st.markdown(content)
+                else:
+                    st.markdown(content)
+
+    # Suggestions only if truly empty
     if not messages:
-        st.markdown("### 👋 How can I assist today?")
-        selected_suggestion = st.pills("Quick Tasks:", list(SUGGESTIONS.keys()), label_visibility="collapsed")
-        if selected_suggestion:
-            _chat_with_agent(SUGGESTIONS[selected_suggestion])
+        st.markdown("### 👋 Hello! How can I assist you with Reservoir Engineering today?")
+        sel_pill = st.pills("Trending tasks:", list(SUGGESTIONS.keys()), label_visibility="collapsed")
+        if sel_pill:
+            _chat_with_agent(SUGGESTIONS[sel_pill])
             st.rerun()
 
 with tab_guide:
