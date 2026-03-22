@@ -192,28 +192,34 @@ if "messages" not in st.session_state:
     st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
 # -----------------
-# Chat Loop (Pure Streamlit Sync)
+# Suggestion Chips (Onboarding)
+# -----------------
+SUGGESTIONS = {
+    "📈 Vogel IPR Curve": "Generate IPR for Pi=4000, Pb=3500, IPR_Model=Vogel, J=1.2. Plot the results.",
+    "🧪 Oil PVT (Standing)": "Calculate oil PVT properties using Standing correlation for 200°F, 3000 psia, API 35, Gas Gravity 0.7.",
+    "☁️ Gas Z-Factor": "Find gas Z-factor (DAK) at 4000 psia, 180°F, 0.65 gravity.",
+    "⚙️ List Tools": "What technical calculations and reservoir engineering tools can you perform?"
+}
+
+# -----------------
+# Chat Loop (Simplified for UI)
 # -----------------
 def _chat_with_agent(user_input):
     client = OpenAI(
         api_key=API_KEY, 
         base_url=BASE_URL,
     )
-    # Ensure current output goes to tab_chat context
-    # (Streamlit handles this as long as the chat loop is triggered)
     full_prompt = user_input
     if user_context:
         full_prompt += f"\n\n[USER CONTEXT DATA]:\n{user_context}"
         
     st.session_state.messages.append({"role": "user", "content": full_prompt})
     
-    # We switch back to tab_chat context conceptually
-    # (Standard Streamlit chat interaction)
     with tab_chat:
-        with st.chat_message("user"):
+        with st.chat_message("user", avatar="👤"):
             st.markdown(full_prompt)
 
-        with st.chat_message("assistant"):
+        with st.chat_message("assistant", avatar="🤖"):
             message_placeholder = st.empty()
             message_placeholder.markdown("🧠 Thinking...")
             
@@ -251,10 +257,9 @@ def _chat_with_agent(user_input):
                     for tool_call in response_message.tool_calls:
                         func_name = tool_call.function.name
                         func_args = json.loads(tool_call.function.arguments)
-                        message_placeholder.markdown(f"⚙️ Executing pyResToolbox tool: `{func_name}`")
+                        message_placeholder.markdown(f"⚙️ Executing: `{func_name}`")
                         
                         try:
-                            # RUN MCP TOOL SYNC VIA ISOLATED THREAD
                             tool_result = run_sync(call_mcp_tool, func_name, func_args)
                             res_text = "\n".join([c.text for c in tool_result.content if getattr(c, 'type', '') == 'text'])
                             if not res_text:
@@ -313,6 +318,9 @@ def _chat_with_agent(user_input):
                         st.code(json_str)
                 else:
                     message_placeholder.markdown(final_text)
+                
+                # Feedback widget
+                st.feedback("thumbs", key=f"fb_{len(st.session_state.messages)}")
 
             except Exception as e:
                 st.error(f"API Error: {e}")
@@ -323,44 +331,46 @@ def _chat_with_agent(user_input):
 tab_chat, tab_guide = st.tabs(["💬 AI Agent", "📖 User Guide"])
 
 with tab_chat:
-    # Render previous messages (except system or tool info if it clutters)
-    for msg in st.session_state.messages:
+    # Onboarding Pills (Only if chat is basically empty - system prompt only)
+    if len(st.session_state.messages) <= 1:
+        st.markdown("### 👋 How can I assist today?")
+        selected_suggestion = st.pills(
+            "Quick Tasks:", 
+            list(SUGGESTIONS.keys()), 
+            label_visibility="collapsed"
+        )
+        if selected_suggestion:
+            _chat_with_agent(SUGGESTIONS[selected_suggestion])
+            st.rerun()
+
+    # Render previous messages
+    for idx, msg in enumerate(st.session_state.messages):
         if msg["role"] == "system": 
             continue
         if msg["role"] == "tool":
-            continue # Just hide raw tool results to keep UI clean
-        # Remove internal nested tool objects if any
+            continue 
+            
         display_content = msg.get("content", "")
         if isinstance(msg.get("tool_calls"), list):
-            # We can show that a tool was called
             func_calls = [tc["function"]["name"] for tc in msg["tool_calls"]]
-            with st.chat_message("assistant"):
-                st.markdown(f"*(Called functions: `{', '.join(func_calls)}`)*")
+            with st.chat_message("assistant", avatar="🤖"):
+                st.markdown(f"*(Called: `{', '.join(func_calls)}`)*")
             continue
 
         if display_content and isinstance(display_content, str):
-            with st.chat_message(msg["role"]):
+            with st.chat_message(msg["role"], avatar="🤖" if msg["role"] == "assistant" else "👤"):
                 st.markdown(display_content)
-    
-    # Message placeholder for the current response
-    if "current_response_placeholder" not in st.session_state:
-        st.session_state.current_response_placeholder = None
 
     st.divider()
-    # "Under" messages: Clear button and then the chat input
+    # Bottom Controls
     col_clear, _ = st.columns([1, 4])
     with col_clear:
-        if st.button("🗑️ Clear History", help="Reset the conversation"):
+        if st.button("🗑️ Clear History"):
             st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
             st.rerun()
 
     if prompt := st.chat_input("Ask a technical question..."):
-        try:
-            _chat_with_agent(prompt)
-        except Exception as e:
-            st.error(f"Chat Loop Error: {e}")
-            import traceback
-            st.code(traceback.format_exc())
+        _chat_with_agent(prompt)
 
 with tab_guide:
     st.header("📖 pyResToolbox Technical Guide")
