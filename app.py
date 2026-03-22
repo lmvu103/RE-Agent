@@ -32,8 +32,8 @@ Format for charts: {"plot_type": "line", "x_label": "X", "y_label": "Y", "series
 # -----------------
 # Configuration (Google Gemini / Google AI Studio)
 # -----------------
-# DEFAULT API KEY from user (AIza...)
-API_KEY_DEFAULT = st.secrets.get("GEMINI_API_KEY", "AIzaSyD4YKKSJ7robWbM6iaexZ4as09MyISqx-c")
+# DEFAULT API KEY from user (Recommendation: do NOT hardcode keys!)
+API_KEY_DEFAULT = st.secrets.get("GEMINI_API_KEY", "")
 # Google's OpenAI-compatible endpoint
 BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 
@@ -41,9 +41,11 @@ with st.sidebar:
     st.header("⚙️ Agent Settings")
     API_KEY = st.text_input("Google AI Studio (Gemini) API Key", value=API_KEY_DEFAULT, type="password", help="Enter your Gemini key here.")
     MODEL_NAME = st.selectbox("Gemini Model", [
-        "gemini-1.5-flash",
-        "gemini-1.5-pro",
-        "gemini-2.0-flash"
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-3-flash-preview",
+        "gemini-flash-latest",
+        "gemini-2.5-pro"
     ], help="Select which Gemini model to use.")
     AGENT_NAME = st.text_input("Agent Display Name", value="pyResToolbox AI")
     
