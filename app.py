@@ -545,43 +545,60 @@ with tab_chat:
                 display_msg(m, key_suffix=f"hist_{i}")
             st.divider()
 
-    # 1. Historical Context (TOP)
-    with st.container():
-        messages = [m for m in st.session_state.messages if m["role"] != "system" and m["role"] != "tool"]
-        
-        # We split: everything up to the very last message is 'history'
-        if len(messages) > 1:
-            for i, m in enumerate(messages[:-1]):
-                display_msg(m, key_suffix=f"h_{i}")
-            st.markdown("---")
+with tab_chat:
+    # -----------------
+    # Unified Message Storage
+    # -----------------
+    all_msgs = [m for m in st.session_state.messages if m["role"] != "system" and m["role"] != "tool"]
+    
+    # Detect where the current interaction starts (last user message)
+    current_start_idx = -1
+    for i in range(len(all_msgs) - 1, -1, -1):
+        if all_msgs[i]["role"] == "user":
+            current_start_idx = i
+            break
+            
+    if current_start_idx != -1:
+        hist_msgs = all_msgs[:current_start_idx]
+        active_msgs = all_msgs[current_start_idx:]
+    else:
+        hist_msgs = all_msgs
+        active_msgs = []
+
+    # 1. Historical Data (TOP)
+    if hist_msgs:
+        for i, m in enumerate(hist_msgs):
+            display_msg(m, key_suffix=f"h_final_{i}")
+        st.divider()
 
     # 2. Command Area (MIDDLE)
-    u_prompt = st.text_input("Technical Query:", placeholder="Enter your engineering command...", label_visibility="collapsed", key="v4_input")
+    u_prompt = st.text_input("Technical Query:", placeholder="Enter your command...", label_visibility="collapsed", key="v6_input")
     col_reset, _ = st.columns([1, 4])
     with col_reset:
-        if st.button("🔄 Reset", key="reset_v4"):
+        if st.button("🔄 Reset", key="reset_v6"):
             st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
             st.rerun()
 
-    # 3. Live Analysis (BOTTOM)
-    result_area = st.container()
-    with result_area:
-        # Trigger
-        if u_prompt and ("processed_v4" not in st.session_state or st.session_state.processed_v4 != u_prompt):
-            st.session_state.processed_v4 = u_prompt
+    # 3. Active Workflow (BOTTOM)
+    # Submission Logic
+    if u_prompt and ("proc_v6" not in st.session_state or st.session_state.proc_v6 != u_prompt):
+        st.session_state.proc_v6 = u_prompt
+        with st.container():
+            st.markdown("### 🚀 Analyzing Data...")
             _chat_with_agent(u_prompt)
             st.rerun()
-        
-        # Display ONLY the very last message if it's from the assistant (the 'Result')
-        if len(messages) >= 1 and messages[-1]["role"] == "assistant":
-            display_msg(messages[-1], key_suffix="latest_result")
-        elif len(messages) == 1 and messages[-1]["role"] == "user":
-            # If user just typed but no assistant msg yet, it shows in history above anyway
-            pass
 
-    # Initial Suggestions
-    if not messages:
-        st.markdown("### 👋 PERE Agents: Professional Reservoir Engineering Assistant")
+    # Result Display (Stable)
+    if active_msgs:
+        for i, m in enumerate(active_msgs):
+            # Only label the assistant's part as 'Result'
+            if m["role"] == "assistant" and i == len(active_msgs) - 1:
+                st.caption("Latest Result:")
+            display_msg(m, key_suffix=f"active_final_{i}")
+
+    # Onboarding
+    if not all_msgs:
+        st.markdown("### 👋 Welcome to PERE Agents")
         sel = st.pills("Start with:", list(SUGGESTIONS.keys()), label_visibility="collapsed")
         if sel:
             _chat_with_agent(SUGGESTIONS[sel])
