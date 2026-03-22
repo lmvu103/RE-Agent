@@ -41,9 +41,9 @@ with st.sidebar:
     st.header("⚙️ Agent Settings")
     API_KEY = st.text_input("Google AI Studio (Gemini) API Key", value=API_KEY_DEFAULT, type="password", help="Enter your Gemini key here.")
     MODEL_NAME = st.selectbox("Gemini Model", [
-        "gemini-1.5-flash-latest",
-        "gemini-1.5-pro-latest",
-        "gemini-2.0-flash-exp"
+        "gemini-1.5-flash",
+        "gemini-1.5-pro",
+        "gemini-2.0-flash"
     ], help="Select which Gemini model to use.")
     AGENT_NAME = st.text_input("Agent Display Name", value="pyResToolbox AI")
     
