@@ -545,31 +545,42 @@ with tab_chat:
                 display_msg(m, key_suffix=f"hist_{i}")
             st.divider()
 
-    # 2. Command Area (MIDDLE)
-    u_prompt = st.text_input("Command Area:", placeholder="Ask PERE Agents...", label_visibility="collapsed", key="v3_input")
-    if st.button("🔄 Reset Conversation", key="reset_v3"):
-        st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-        st.rerun()
+    # 1. Historical Context (TOP)
+    with st.container():
+        messages = [m for m in st.session_state.messages if m["role"] != "system" and m["role"] != "tool"]
+        
+        # We split: everything up to the very last message is 'history'
+        if len(messages) > 1:
+            for i, m in enumerate(messages[:-1]):
+                display_msg(m, key_suffix=f"h_{i}")
+            st.markdown("---")
 
-    # 3. Active Result (BOTTOM)
+    # 2. Command Area (MIDDLE)
+    u_prompt = st.text_input("Technical Query:", placeholder="Enter your engineering command...", label_visibility="collapsed", key="v4_input")
+    col_reset, _ = st.columns([1, 4])
+    with col_reset:
+        if st.button("🔄 Reset", key="reset_v4"):
+            st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+            st.rerun()
+
+    # 3. Live Analysis (BOTTOM)
     result_area = st.container()
     with result_area:
-        # If we have a new prompt, run the agent
-        if u_prompt and ("processed_v3" not in st.session_state or st.session_state.processed_v3 != u_prompt):
-            st.session_state.processed_v3 = u_prompt
+        # Trigger
+        if u_prompt and ("processed_v4" not in st.session_state or st.session_state.processed_v4 != u_prompt):
+            st.session_state.processed_v4 = u_prompt
             _chat_with_agent(u_prompt)
             st.rerun()
         
-        # Display the most recent interaction (Last 2 messages)
-        if len(history_msgs) >= 2:
-            st.caption("Latest Analysis Result:")
-            for i, m in enumerate(history_msgs[-2:]):
-                display_msg(m, key_suffix=f"active_{i}")
-        elif len(history_msgs) == 1: # Only user prompt exists
-            display_msg(history_msgs[0], key_suffix="active_0")
+        # Display ONLY the very last message if it's from the assistant (the 'Result')
+        if len(messages) >= 1 and messages[-1]["role"] == "assistant":
+            display_msg(messages[-1], key_suffix="latest_result")
+        elif len(messages) == 1 and messages[-1]["role"] == "user":
+            # If user just typed but no assistant msg yet, it shows in history above anyway
+            pass
 
-    # Onboarding
-    if len(history_msgs) == 0:
+    # Initial Suggestions
+    if not messages:
         st.markdown("### 👋 PERE Agents: Professional Reservoir Engineering Assistant")
         sel = st.pills("Start with:", list(SUGGESTIONS.keys()), label_visibility="collapsed")
         if sel:
