@@ -429,9 +429,39 @@ def _chat_with_agent(user_input):
             except Exception as e:
                 st.error(f"API Error: {e}")
 
-# Render Premium Custom Header at the top of the app
+# Render Premium Custom Header
 tool_count = len(st.session_state.openai_tools) if "openai_tools" in st.session_state else 0
 _PREMIUM_HEADER(data={"model": MODEL_NAME, "toolCount": tool_count}, key="app_header")
+
+# -----------------
+# Top Control Bar (Input & Reset)
+# -----------------
+with st.container():
+    col_input, col_reset = st.columns([5, 1])
+    with col_input:
+        # Use on_change to submit without needing a separate button if possible
+        if "chat_input_val" not in st.session_state:
+            st.session_state.chat_input_val = ""
+        
+        prompt = st.text_input(
+            "Quick Command / Query:", 
+            placeholder="Ask a technical question or use a suggestion below...",
+            label_visibility="collapsed",
+            key="chat_top_input"
+        )
+    
+    with col_reset:
+        if st.button("🔄 Reset Chat", use_container_width=True, help="Clear all previous messages and starts over."):
+            st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+            st.rerun()
+
+# Logic to trigger chat from either text_input OR suggestion pills
+current_prompt = None
+if prompt:
+    current_prompt = prompt
+    # Note: We need to clear the input or handle state to avoid re-triggering on scroll
+    # A common trick is to use a separate key or check if it changed
+    # For now, let's keep it simple: if prompt exists, we process it and then rerun or similar
 
 # -----------------
 # UI Tabs
@@ -439,7 +469,13 @@ _PREMIUM_HEADER(data={"model": MODEL_NAME, "toolCount": tool_count}, key="app_he
 tab_chat, tab_guide = st.tabs(["💬 AI Agent", "📖 User Guide"])
 
 with tab_chat:
-    # Onboarding Pills (Only if chat is basically empty - system prompt only)
+    # Handle the submission from top input (to avoid double entry in state)
+    if current_prompt and ("last_prompt" not in st.session_state or st.session_state.last_prompt != current_prompt):
+        st.session_state.last_prompt = current_prompt
+        _chat_with_agent(current_prompt)
+        # st.rerun() # Uncommenting might be needed if state doesn't update fast enough
+
+    # Onboarding Pills
     if len(st.session_state.messages) <= 1:
         st.markdown("### 👋 How can I assist today?")
         selected_suggestion = st.pills(
@@ -470,15 +506,6 @@ with tab_chat:
                 st.markdown(display_content)
 
     st.divider()
-    # Bottom Controls
-    col_clear, _ = st.columns([1, 4])
-    with col_clear:
-        if st.button("🗑️ Clear History"):
-            st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-            st.rerun()
-
-    if prompt := st.chat_input("Ask a technical question..."):
-        _chat_with_agent(prompt)
 
 with tab_guide:
     st.header("📖 pyResToolbox Technical Guide")
