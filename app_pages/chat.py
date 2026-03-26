@@ -184,9 +184,9 @@ if __name__ == "__main__":
         
         c1, c2 = st.columns(2)
         with c1:
-            st.session_state[key_var] = st.text_input(f"🔑 {st.session_state.provider} API Key", value=st.session_state.get(key_var, ""), type="password")
+            st.text_input(f"🔑 {st.session_state.provider} API Key", key=key_var, type="password")
         with c2:
-            st.session_state[model_var] = st.text_input(f"🤖 Model ID", value=st.session_state.get(model_var, ""))
+            st.text_input(f"🤖 Model ID", key=model_var)
             
     # Check if active key is properly loaded
     p_low = st.session_state.provider.lower()
