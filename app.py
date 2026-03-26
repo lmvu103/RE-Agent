@@ -19,13 +19,13 @@ if os.path.exists(CSS_PATH):
 def initialize_engine():
     # Multi-Provider Configuration
     if "provider" not in st.session_state:
-        st.session_state.provider = "Gemini" # Default
+        st.session_state.provider = "OpenRouter" # Default
     
     # Keys for each provider
     providers_info = {
         "Gemini": {"key": "GEMINI_API_KEY", "model": "gemini-2.0-flash"},
-        "OpenAI": {"key": "OPENAI_API_KEY", "model": "gpt-4o"},
-        "OpenRouter": {"key": "OPENROUTER_API_KEY", "model": "anthropic/claude-3.5-sonnet"},
+        "OpenAI": {"key": "OPENAI_API_KEY", "model": "gpt-5.4"},
+        "OpenRouter": {"key": "OPENROUTER_API_KEY", "model": "google/gemini-2.0-flash-001"},
         "Groq": {"key": "GROQ_API_KEY", "model": "llama-3.3-70b-versatile"},
     }
     
