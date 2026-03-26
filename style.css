@@ -1,0 +1,92 @@
+/* Premium Styling for PERE Agent */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+    --primary: #4facfe;
+    --secondary: #00f2fe;
+    --bg-dark: #0e1117;
+    --card-bg: rgba(255, 255, 255, 0.03);
+    --border: rgba(255, 255, 255, 0.1);
+}
+
+.stApp {
+    font-family: 'Inter', sans-serif;
+}
+
+/* Header Styling */
+.header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    margin-bottom: 2rem;
+}
+
+.logo-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.main-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.02em;
+}
+
+.sub-title {
+    font-size: 0.85rem;
+    color: #888;
+    font-weight: 500;
+}
+
+/* Status Chips */
+.status-area {
+    display: flex;
+    gap: 1rem;
+}
+
+.status-chip {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 8px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    text-align: right;
+}
+
+.chip-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #666;
+    text-transform: uppercase;
+}
+
+.chip-value {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--primary);
+}
+
+/* Chat Input Styling */
+.stChatInputContainer {
+    padding-bottom: 2rem !important;
+}
+
+/* Card Styling */
+div[data-testid="stExpander"] {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+/* Custom Tables */
+.stDataFrame {
+    border-radius: 12px;
+    overflow: hidden;
+}

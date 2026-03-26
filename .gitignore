@@ -1,7 +1,9 @@
+.streamlit/
 .venv/
-__pycache__/
-*.pyc
 .env
+.DS_Store
+*.pyc
+__pycache__/
 .ipynb_checkpoints/
 mcp_server/.venv/
 mcp_server/.uvrc
