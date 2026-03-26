@@ -33,9 +33,13 @@ def initialize_engine():
     for p, info in providers_info.items():
         key_name = f"{p.lower()}_api_key"
         model_name = f"{p.lower()}_model"
-        # Read from Streamlit Secrets (Fixed backend)
-        st.session_state[key_name] = st.secrets.get(info["key"], "")
-        if model_name not in st.session_state:
+        
+        # Priority 1: Use value from Secrets if not already set by user
+        if key_name not in st.session_state or not st.session_state[key_name]:
+            st.session_state[key_name] = st.secrets.get(info["key"], "")
+            
+        # Priority 2: Use default model if not set
+        if model_name not in st.session_state or not st.session_state[model_name]:
             st.session_state[model_name] = info["model"]
 
     # Current Active session aliases (backward compatibility for chat.py)

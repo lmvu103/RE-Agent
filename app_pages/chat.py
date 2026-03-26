@@ -177,20 +177,27 @@ if __name__ == "__main__":
     with st.expander("🛠️ Advanced Configuration", expanded=not any([st.session_state.gemini_api_key, st.session_state.openai_api_key, st.session_state.groq_api_key, st.session_state.openrouter_api_key])):
         st.session_state.provider = st.selectbox("🌐 Active Provider", ["Gemini", "OpenAI", "OpenRouter", "Groq"])
         p_low = st.session_state.provider.lower()
-        
-        # Key & Model inputs for selected provider
         key_var = f"{p_low}_api_key"
         model_var = f"{p_low}_model"
         
         c1, c2 = st.columns(2)
         with c1:
-            st.text_input(f"🔑 {st.session_state.provider} API Key", key=key_var, type="password")
+            # Explicitly load from state
+            current_k = st.session_state.get(key_var, "")
+            new_k = st.text_input(f"🔑 {st.session_state.provider} API Key", value=current_k, type="password")
+            if new_k != current_k:
+                st.session_state[key_var] = new_k
+                st.rerun() # Ensure state is updated before chat
         with c2:
-            st.text_input(f"🤖 Model ID", key=model_var)
+            current_m = st.session_state.get(model_var, "")
+            new_m = st.text_input(f"🤖 Model ID", value=current_m)
+            if new_m != current_m:
+                st.session_state[model_var] = new_m
+                st.rerun()
             
-    # Check if active key is properly loaded
-    p_low = st.session_state.provider.lower()
-    active_key = st.session_state.get(f"{p_low}_api_key")
+    # Final check for AI usage
+    active_p = st.session_state.provider.lower()
+    active_key = st.session_state.get(f"{active_p}_api_key")
     
     if active_key:
         handle_chat()
