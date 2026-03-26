@@ -174,21 +174,25 @@ def handle_chat():
 
 if __name__ == "__main__":
     # Settings Section (Multi-Provider)
-    with st.expander("🛠️ Advanced Agent Configuration", expanded=False):
+    with st.expander("🛠️ Advanced Configuration", expanded=not any([st.session_state.gemini_api_key, st.session_state.openai_api_key, st.session_state.groq_api_key, st.session_state.openrouter_api_key])):
         st.session_state.provider = st.selectbox("🌐 Active Provider", ["Gemini", "OpenAI", "OpenRouter", "Groq"])
         p_low = st.session_state.provider.lower()
         
+        # Key & Model inputs for selected provider
+        key_var = f"{p_low}_api_key"
         model_var = f"{p_low}_model"
         
-        st.caption(f"ℹ️ {st.session_state.provider} API is fixed for this deployment.")
-        st.session_state[model_var] = st.text_input(f"🤖 {st.session_state.provider} Model ID", value=st.session_state.get(model_var, ""))
+        c1, c2 = st.columns(2)
+        with c1:
+            st.session_state[key_var] = st.text_input(f"🔑 {st.session_state.provider} API Key", value=st.session_state.get(key_var, ""), type="password")
+        with c2:
+            st.session_state[model_var] = st.text_input(f"🤖 Model ID", value=st.session_state.get(model_var, ""))
             
-    # Check if active key is properly loaded from secrets
+    # Check if active key is properly loaded
     p_low = st.session_state.provider.lower()
     active_key = st.session_state.get(f"{p_low}_api_key")
     
     if active_key:
         handle_chat()
     else:
-        st.warning(f"❌ **{st.session_state.provider} Key Missing**: Please add your `{st.session_state.provider.upper()}_API_KEY` to the Streamlit Cloud Dashboard (Settings > Secrets) or your local `secrets.toml` file.")
-        st.info("ℹ️ Tips: After adding the secret, refresh this page to start chatting.")
+        st.warning(f"❌ **{st.session_state.provider} Key Missing**: Please enter your API Key in the settings panel above to unlock the agent.")
