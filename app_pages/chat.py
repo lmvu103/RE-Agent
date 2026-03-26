@@ -183,5 +183,12 @@ if __name__ == "__main__":
         st.caption(f"ℹ️ {st.session_state.provider} API is fixed for this deployment.")
         st.session_state[model_var] = st.text_input(f"🤖 {st.session_state.provider} Model ID", value=st.session_state.get(model_var, ""))
             
-    # Key should be present from app.py, so start chat directly
-    handle_chat()
+    # Check if active key is properly loaded from secrets
+    p_low = st.session_state.provider.lower()
+    active_key = st.session_state.get(f"{p_low}_api_key")
+    
+    if active_key:
+        handle_chat()
+    else:
+        st.warning(f"❌ **{st.session_state.provider} Key Missing**: Please add your `{st.session_state.provider.upper()}_API_KEY` to the Streamlit Cloud Dashboard (Settings > Secrets) or your local `secrets.toml` file.")
+        st.info("ℹ️ Tips: After adding the secret, refresh this page to start chatting.")
