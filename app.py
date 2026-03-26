@@ -21,9 +21,10 @@ def initialize_engine():
     if "provider" not in st.session_state:
         st.session_state.provider = "OpenRouter" # Default
     
-    # Keys for each provider
+    # SECURE PRACTICE: Using st.secrets. 
+    # Add your keys to the Streamlit Cloud Dashboard (Settings > Secrets) for live deployment.
     providers_info = {
-        "Gemini": {"key": "GEMINI_API_KEY", "model": "gemini-2.0-flash"},
+        "Gemini": {"key": "GEMINI_API_KEY", "model": "gemini-2.5-flash"},
         "OpenAI": {"key": "OPENAI_API_KEY", "model": "gpt-5.4"},
         "OpenRouter": {"key": "OPENROUTER_API_KEY", "model": "google/gemini-2.0-flash-001"},
         "Groq": {"key": "GROQ_API_KEY", "model": "llama-3.3-70b-versatile"},
@@ -32,8 +33,8 @@ def initialize_engine():
     for p, info in providers_info.items():
         key_name = f"{p.lower()}_api_key"
         model_name = f"{p.lower()}_model"
-        if key_name not in st.session_state:
-            st.session_state[key_name] = st.secrets.get(info["key"], "")
+        # Read from Streamlit Secrets (Fixed backend)
+        st.session_state[key_name] = st.secrets.get(info["key"], "")
         if model_name not in st.session_state:
             st.session_state[model_name] = info["model"]
 

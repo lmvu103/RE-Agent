@@ -174,26 +174,14 @@ def handle_chat():
 
 if __name__ == "__main__":
     # Settings Section (Multi-Provider)
-    with st.expander("🛠️ Advanced Agent Configuration", expanded=not any([st.session_state.gemini_api_key, st.session_state.openai_api_key, st.session_state.groq_api_key])):
+    with st.expander("🛠️ Advanced Agent Configuration", expanded=False):
         st.session_state.provider = st.selectbox("🌐 Active Provider", ["Gemini", "OpenAI", "OpenRouter", "Groq"])
         p_low = st.session_state.provider.lower()
         
-        # Display Key & Model inputs for selected provider
-        key_var = f"{p_low}_api_key"
         model_var = f"{p_low}_model"
         
-        c1, c2 = st.columns(2)
-        with c1:
-            st.session_state[key_var] = st.text_input(f"🔑 {st.session_state.provider} API Key", value=st.session_state.get(key_var, ""), type="password")
-        with c2:
-            st.session_state[model_var] = st.text_input(f"🤖 {st.session_state.provider} Model ID", value=st.session_state.get(model_var, ""))
+        st.caption(f"ℹ️ {st.session_state.provider} API is fixed for this deployment.")
+        st.session_state[model_var] = st.text_input(f"🤖 {st.session_state.provider} Model ID", value=st.session_state.get(model_var, ""))
             
-        if not st.session_state[key_var]:
-            st.warning(f"Please enter your {st.session_state.provider} API Key to proceed.")
-    
-    # Check if active key exists before starting chat
-    active_p = st.session_state.provider.lower()
-    if st.session_state.get(f"{active_p}_api_key"):
-        handle_chat()
-    else:
-        st.info("Wait! You need an API Key first. 👆 Look in the Settings panel.")
+    # Key should be present from app.py, so start chat directly
+    handle_chat()
