@@ -2,8 +2,11 @@ import streamlit as st
 import json
 import pandas as pd
 import plotly.graph_objects as go
+import os
 from openai import OpenAI
 from mcp_utils import call_mcp_tool, run_sync
+# Import to ensure state is initialized on subpages
+from app import initialize_engine
 
 def parse_and_render_assistant_content(content, idx_suffix=""):
     """Parses content for JSON blocks and renders markdown + charts/tables."""
@@ -175,25 +178,16 @@ def handle_chat():
 if __name__ == "__main__":
     # Settings Section (Multi-Provider)
     with st.expander("🛠️ Advanced Configuration", expanded=not any([st.session_state.gemini_api_key, st.session_state.openai_api_key, st.session_state.groq_api_key, st.session_state.openrouter_api_key])):
-        st.session_state.provider = st.selectbox("🌐 Active Provider", ["Gemini", "OpenAI", "OpenRouter", "Groq"])
+        st.selectbox("🌐 Active Provider", ["Gemini", "OpenAI", "OpenRouter", "Groq"], key="provider")
         p_low = st.session_state.provider.lower()
         key_var = f"{p_low}_api_key"
         model_var = f"{p_low}_model"
         
         c1, c2 = st.columns(2)
         with c1:
-            # Explicitly load from state
-            current_k = st.session_state.get(key_var, "")
-            new_k = st.text_input(f"🔑 {st.session_state.provider} API Key", value=current_k, type="password")
-            if new_k != current_k:
-                st.session_state[key_var] = new_k
-                st.rerun() # Ensure state is updated before chat
+            st.text_input(f"🔑 {st.session_state.provider} API Key", type="password", key=key_var)
         with c2:
-            current_m = st.session_state.get(model_var, "")
-            new_m = st.text_input(f"🤖 Model ID", value=current_m)
-            if new_m != current_m:
-                st.session_state[model_var] = new_m
-                st.rerun()
+            st.text_input(f"🤖 Model ID", key=model_var)
             
     # Final check for AI usage
     active_p = st.session_state.provider.lower()

@@ -36,13 +36,14 @@ def initialize_engine():
         
         # Priority 1: Use value from Secrets if not already set by user
         if key_name not in st.session_state or not st.session_state[key_name]:
-            st.session_state[key_name] = st.secrets.get(info["key"], "")
+            secret_val = st.secrets.get(info["key"], "")
+            st.session_state[key_name] = secret_val
             
         # Priority 2: Use default model if not set
         if model_name not in st.session_state or not st.session_state[model_name]:
             st.session_state[model_name] = info["model"]
 
-    # Current Active session aliases (backward compatibility for chat.py)
+    # Current Active session aliases
     st.session_state.api_key = st.session_state.get(f"{st.session_state.provider.lower()}_api_key", "")
     st.session_state.model_name = st.session_state.get(f"{st.session_state.provider.lower()}_model", "")
     
