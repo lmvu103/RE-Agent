@@ -178,16 +178,31 @@ def handle_chat():
 if __name__ == "__main__":
     # Settings Section (Multi-Provider)
     with st.expander("🛠️ Advanced Configuration", expanded=not any([st.session_state.gemini_api_key, st.session_state.openai_api_key, st.session_state.groq_api_key, st.session_state.openrouter_api_key])):
-        st.selectbox("🌐 Active Provider", ["Gemini", "OpenAI", "OpenRouter", "Groq"], key="provider")
+        provider_opts = ["Gemini", "OpenAI", "OpenRouter", "Groq"]
+        current_p = st.session_state.provider if st.session_state.provider in provider_opts else "OpenRouter"
+        
+        selected_p = st.selectbox("🌐 Active Provider", provider_opts, index=provider_opts.index(current_p))
+        if selected_p != st.session_state.provider:
+            st.session_state.provider = selected_p
+            st.rerun()
+
         p_low = st.session_state.provider.lower()
         key_var = f"{p_low}_api_key"
         model_var = f"{p_low}_model"
         
         c1, c2 = st.columns(2)
         with c1:
-            st.text_input(f"🔑 {st.session_state.provider} API Key", type="password", key=key_var)
+            current_k = st.session_state.get(key_var, "")
+            new_k = st.text_input(f"🔑 {st.session_state.provider} API Key", value=current_k, type="password")
+            if new_k != current_k:
+                st.session_state[key_var] = new_k
+                st.rerun()
         with c2:
-            st.text_input(f"🤖 Model ID", key=model_var)
+            current_m = st.session_state.get(model_var, "")
+            new_m = st.text_input(f"🤖 Model ID", value=current_m)
+            if new_m != current_m:
+                st.session_state[model_var] = new_m
+                st.rerun()
             
     # Final check for AI usage
     active_p = st.session_state.provider.lower()
