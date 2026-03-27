@@ -66,18 +66,6 @@ def initialize_engine():
         except:
             st.session_state.openai_tools = []
 
-    # ESP Tool State (Defaults)
-    esp_defaults = {
-        'well_name': "WELL-01", 'depth_tvd': 8000.0, 'casing_id': 6.184,
-        'sbhp': 3000.0, 'pbhp': 2200.0, 'target_rate': 2000.0,
-        'api': 35.0, 'wc': 50.0, 'gor': 400.0, 'gas_sg': 0.7, 'whp': 200.0,
-        'pump_selected': None, 'stages': 100, 'manufacturer': 'SLB',
-        'mon_freq': 60.0, 'mon_rate': 1800.0, 'mon_whp': 200.0, 'test_rate': 1500.0
-    }
-    for k, v in esp_defaults.items():
-        if k not in st.session_state:
-            st.session_state[k] = v
-
 initialize_engine()
 
 # --- 3. SIDEBAR (NAVIGATION) ---

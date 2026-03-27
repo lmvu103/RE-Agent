@@ -181,28 +181,37 @@ if __name__ == "__main__":
         provider_opts = ["Gemini", "OpenAI", "OpenRouter", "Groq"]
         current_p = st.session_state.provider if st.session_state.provider in provider_opts else "OpenRouter"
         
-        selected_p = st.selectbox("🌐 Active Provider", provider_opts, index=provider_opts.index(current_p))
-        if selected_p != st.session_state.provider:
-            st.session_state.provider = selected_p
-            st.rerun()
+        # Sync widget state
+        if "ui_provider" not in st.session_state:
+            st.session_state["ui_provider"] = current_p
+            
+        def update_provider():
+            st.session_state.provider = st.session_state["ui_provider"]
+            
+        st.selectbox("🌐 Active Provider", provider_opts, key="ui_provider", on_change=update_provider)
 
         p_low = st.session_state.provider.lower()
         key_var = f"{p_low}_api_key"
         model_var = f"{p_low}_model"
         
+        ui_key = f"{key_var}_input"
+        ui_model = f"{model_var}_input"
+        
+        # Sync underlying state to widgets
+        if ui_key not in st.session_state:
+            st.session_state[ui_key] = st.session_state.get(key_var, "")
+        if ui_model not in st.session_state:
+            st.session_state[ui_model] = st.session_state.get(model_var, "")
+            
+        def update_config():
+            st.session_state[key_var] = st.session_state[ui_key]
+            st.session_state[model_var] = st.session_state[ui_model]
+            
         c1, c2 = st.columns(2)
         with c1:
-            current_k = st.session_state.get(key_var, "")
-            new_k = st.text_input(f"🔑 {st.session_state.provider} API Key", value=current_k, type="password")
-            if new_k != current_k:
-                st.session_state[key_var] = new_k
-                st.rerun()
+            st.text_input(f"🔑 {st.session_state.provider} API Key", type="password", key=ui_key, on_change=update_config)
         with c2:
-            current_m = st.session_state.get(model_var, "")
-            new_m = st.text_input(f"🤖 Model ID", value=current_m)
-            if new_m != current_m:
-                st.session_state[model_var] = new_m
-                st.rerun()
+            st.text_input(f"🤖 Model ID", key=ui_model, on_change=update_config)
             
     # Final check for AI usage
     active_p = st.session_state.provider.lower()
